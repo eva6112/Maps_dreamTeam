@@ -17,11 +17,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.tooling.preview.PreviewScreenSizes
-import com.example.tsumaps.ui.theme.TSUMapsTheme
 import com.example.tsumaps.navigation.AppDestinations
+import com.example.tsumaps.food.FoodScreen
+import com.example.tsumaps.ui.theme.TSUMapsTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -35,10 +33,9 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@PreviewScreenSizes
 @Composable
 fun TSUMapsApp() {
-    var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.MAP) }
+    var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.FOOD) }
 
     NavigationSuiteScaffold(
         navigationSuiteItems = {
@@ -58,26 +55,11 @@ fun TSUMapsApp() {
         }
     ) {
         Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-            Greeting(
-                name = "Alena",
-                modifier = Modifier.padding(innerPadding)
-            )
+            when (currentDestination) {
+                AppDestinations.MAP -> Text("Маршруты (А*) - будет позже", modifier = Modifier.padding(innerPadding))
+                AppDestinations.FOOD -> FoodScreen(modifier = Modifier.padding(innerPadding))
+                AppDestinations.TOUR -> Text("Экскурсия (муравьиный) - будет позже", modifier = Modifier.padding(innerPadding))
+            }
         }
-    }
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    TSUMapsTheme {
-        Greeting("Android")
     }
 }
