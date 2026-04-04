@@ -9,7 +9,7 @@ import androidx.compose.material3.*
 @Composable
 fun FoodScreen(modifier: Modifier = Modifier) {
     var tabIndex by remember { mutableStateOf(0) }
-    val tabs = listOf("Кластеры", "Генетический", "Оценка")
+    val tabs = listOf("Кластеры", "Генетический", "Оценка", "Дерево")
     Column(
         modifier = modifier.fillMaxSize()
     ) {
@@ -18,6 +18,7 @@ fun FoodScreen(modifier: Modifier = Modifier) {
                 0 -> ClusterScreen()
                 1 -> GeneticScreen()
                 2 -> RatingScreen()
+                3 -> TreeScreen()
             }
         }
         SecondaryTabRow(
