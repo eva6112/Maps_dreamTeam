@@ -2,13 +2,33 @@ package com.example.tsumaps.decisiontree
 
 import kotlin.math.log2
 
-// 1. Структура, состоящая из признака и решения
+// 1. Структура, состоящая из признака и решения (отдельная строчка CSV)
 data class DataRow(
     val features: Map<String, String>,
     val label: String
 )
 
-// 2. Парсер CSV
+// 2. Класс узла дерева (признак, значение + поддерево, решение)
+class TreeNode(
+    val featureName: String? = null,
+    val children: Map<String, TreeNode> = emptyMap(),
+    val predictedLabel: String? = null
+)
+
+// 3. Класс узла (шага): признак, значение, лист или нет
+data class NodeStep(
+    val featureName: String,
+    val chosenValue: String,
+    val isLeaf: Boolean = false
+)
+
+// 4. Класс ответа (решение + путь)
+data class PredictionResult(
+    val recommendedPlace: String,
+    val path: List<NodeStep>
+)
+
+// 5. Парсер CSV
 fun parseCsv(csvText: String): List<DataRow>
 {
     val lines = csvText.trim().lines().filter { it.isNotEmpty() }
@@ -22,6 +42,10 @@ fun parseCsv(csvText: String): List<DataRow>
     for (i in 1 until lines.size)
     {
         val values = lines[i].split(";")
+
+        if (values.size <= targetIndex)
+            continue
+
         val features = mutableMapOf<String, String>()
         for (j in 0 until targetIndex)
         {
@@ -32,7 +56,7 @@ fun parseCsv(csvText: String): List<DataRow>
     return dataset
 }
 
-// 3. Расчёт энтропии
+// 6. Расчёт энтропии
 fun calculateEntropy(data: List<DataRow>): Double
 {
     if (data.isEmpty())
@@ -47,12 +71,12 @@ fun calculateEntropy(data: List<DataRow>): Double
     for (count in labelCounts.values)
     {
         val probability = count / totalSize
-        entropy -= probability * log2(probability)                                              //H = -Σ p * log₂(p)
+        entropy -= probability * log2(probability)                                                  //H = -Σ p * log₂(p)
     }
     return entropy
 }
 
-// 4. Разбивает данные по значениям указанного признака
+// 7. Разбивает данные по значениям указанного признака
 fun splitData(data: List<DataRow>, featureName: String): Map<String, List<DataRow>>
 {
     val splits = mutableMapOf<String, MutableList<DataRow>>()                                       //значение, список строк с таким значением
@@ -67,22 +91,24 @@ fun splitData(data: List<DataRow>, featureName: String): Map<String, List<DataRo
     return splits
 }
 
-// 5. Расчет, насколько уменьшается энтропия, после разделения по признаку
+// 8. Расчет, насколько уменьшается энтропия, после разделения по признаку
 fun calculateInformationGain(data: List<DataRow>, featureName: String): Double
 {
     val baseEntropy = calculateEntropy(data)
     val splits = splitData(data, featureName)
+
     var newEntropy = 0.0
     val totalSize = data.size.toDouble()
+
     for (subset in splits.values)
     {
         val weight = subset.size / totalSize
-        newEntropy += weight * calculateEntropy(subset)                                      //Σ (|Sᵥ|/|S|) * H(Sᵥ)
+        newEntropy += weight * calculateEntropy(subset)                                             //Σ (|Sᵥ|/|S|) * H(Sᵥ)
     }
     return baseEntropy - newEntropy                                                                 //чем больше, тем лучше признак разделяет данные
 }
 
-// 6. Поиск лучшего вопроса
+// 9. Поиск лучшего вопроса
 fun findBestFeatureToSplit(data: List<DataRow>, availableFeatures: List<String>): String?
 {
     var bestFeature: String? = null
@@ -91,7 +117,6 @@ fun findBestFeatureToSplit(data: List<DataRow>, availableFeatures: List<String>)
     for (feature in availableFeatures)
     {
         val gain = calculateInformationGain(data, feature)
-        println("Признак '$feature': Прирост информации = $gain")
         if (gain > maxGain)
         {
             maxGain = gain
@@ -103,15 +128,9 @@ fun findBestFeatureToSplit(data: List<DataRow>, availableFeatures: List<String>)
     return bestFeature
 }
 
-// 7. Класс узла дерева (признак, значение + поддерево, решение)
-class TreeNode(
-    val featureName: String? = null,
-    val children: Map<String, TreeNode> = emptyMap(),
-    val predictedLabel: String? = null
-)
-
-// 8. Рекурсивная функция постройки всего дерева
-fun buildTree(data: List<DataRow>, availableFeatures: List<String>): TreeNode
+// 10. Рекурсивная функция постройки всего дерева
+fun buildTree(data: List<DataRow>, availableFeatures: List<String>,
+              currentDepth: Int = 0, maxDepth: Int = 6): TreeNode
 {
     // Базовый случай 1: Если все строки ведут к одному результату
     val distinctLabels = data.map { it.label }.distinct()                                           //получаем уникальный ответ
@@ -121,7 +140,7 @@ fun buildTree(data: List<DataRow>, availableFeatures: List<String>): TreeNode
     }
 
     // Базовый случай 2: Если использованы все случаи, возвращается самый частый ответ
-    if (availableFeatures.isEmpty())
+    if (availableFeatures.isEmpty() || currentDepth >= maxDepth)
     {
         val majorityLabel = data.groupBy { it.label }.maxByOrNull { it.value.size }?.key
         return TreeNode(predictedLabel = majorityLabel)
@@ -136,37 +155,22 @@ fun buildTree(data: List<DataRow>, availableFeatures: List<String>): TreeNode
     }
 
     // Разбиваем данные на кучки по ответам и строим ветки для каждой кучки
-    val splits = splitData(data, bestFeature)                                          //получаем списки строк с признаком
+    val splits = splitData(data, bestFeature)                                                       //получаем списки строк с признаком
     val remainingFeatures = availableFeatures - bestFeature
     val children = mutableMapOf<String, TreeNode>()
 
     for ((featureValue, subset) in splits)                                                          //рекурсивный спуск по дереву
     {
-        children[featureValue] = buildTree(subset, remainingFeatures)
+        children[featureValue] = buildTree(subset, remainingFeatures,
+            currentDepth + 1, maxDepth)
     }
 
     return TreeNode(featureName = bestFeature, children = children)
 }
 
-// 9. Класс ответа (решение + путь)
-data class PredictionResult(
-    val recommendedPlace: String,
-    val path: List<NodeStep>
-)
-
-// 10. Класс узла: признак, значение, лист или нет
-data class NodeStep(
-    val featureName: String,
-    val chosenValue: String,
-    val isLeaf: Boolean = false
-)
-
 // 11. Решение + путь к нему
-fun predictWithPath(
-    node: TreeNode,
-    userInput: Map<String, String>,
-    path: MutableList<NodeStep> = mutableListOf()
-): PredictionResult
+fun predictWithPath(node: TreeNode, userInput: Map<String, String>,
+                    path: MutableList<NodeStep> = mutableListOf()): PredictionResult
 {
     if (node.predictedLabel != null)                                                                //если дошли до листа - уже есть решение
     {
@@ -197,4 +201,23 @@ fun predictWithPath(
     {
         PredictionResult("Нет данных для комбинации: $featureToAsk = $userAnswer", path)
     }
+}
+
+// 12. Трансформация дерева в текст
+fun treeToString(node: TreeNode, indent: String = ""): String
+{
+    if (node.predictedLabel != null)
+    {
+        return "$indent-> Решение: ${node.predictedLabel}\n"
+    }
+
+    val builder = StringBuilder()
+    builder.append("$indent? Зависит от: ${node.featureName}\n")
+
+    for ((value, childNode) in node.children)
+    {
+        builder.append("$indent  |-- [$value]\n")
+        builder.append(treeToString(childNode, "$indent | "))
+    }
+    return builder.toString()
 }
