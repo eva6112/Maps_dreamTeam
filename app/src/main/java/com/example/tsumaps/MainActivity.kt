@@ -20,7 +20,7 @@ import androidx.compose.ui.res.painterResource
 import com.example.tsumaps.navigation.AppDestinations
 import com.example.tsumaps.food.FoodScreen
 import com.example.tsumaps.ui.theme.TSUMapsTheme
-
+import com.example.tsumaps.map.MapScreen
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -56,7 +56,7 @@ fun TSUMapsApp() {
     ) {
         Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
             when (currentDestination) {
-                AppDestinations.MAP -> Text("Маршруты (А*) - будет позже", modifier = Modifier.padding(innerPadding))
+                AppDestinations.MAP -> MapScreen()
                 AppDestinations.FOOD -> FoodScreen(modifier = Modifier.padding(innerPadding))
                 AppDestinations.TOUR -> Text("Экскурсия (муравьиный) - будет позже", modifier = Modifier.padding(innerPadding))
             }
