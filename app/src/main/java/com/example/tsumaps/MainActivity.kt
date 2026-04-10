@@ -17,10 +17,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import com.example.tsumaps.ant_algorithm.RouteScreen
 import com.example.tsumaps.navigation.AppDestinations
 import com.example.tsumaps.food.FoodScreen
 import com.example.tsumaps.ui.theme.TSUMapsTheme
 import com.example.tsumaps.map.MapScreen
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,7 +37,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun TSUMapsApp() {
-    var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.FOOD) }
+    var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.MAP) }
 
     NavigationSuiteScaffold(
         navigationSuiteItems = {
@@ -58,7 +60,7 @@ fun TSUMapsApp() {
             when (currentDestination) {
                 AppDestinations.MAP -> MapScreen()
                 AppDestinations.FOOD -> FoodScreen(modifier = Modifier.padding(innerPadding))
-                AppDestinations.TOUR -> Text("Экскурсия (муравьиный) - будет позже", modifier = Modifier.padding(innerPadding))
+                AppDestinations.TOUR -> RouteScreen()
             }
         }
     }
