@@ -5,24 +5,24 @@ import java.io.BufferedReader                                                   
 import java.io.InputStreamReader                                                                    //для перевода байтов в символы
 
 // 1. Парсер данных о заведених
-fun readPlacesFromCsv(context: Context): List<Place>
+fun readPlacesFromCsv(context: Context, fileName: String): List<Place>
 {
     val places = mutableListOf<Place>()
 
     try
     {
-        val inputStream = context.assets.open("places_coordinates.csv")
-        val reader = BufferedReader(InputStreamReader(inputStream))                                 //создается buffered reader для построчного чтения файла
+        val inputStream = context.assets.open(fileName)
+        val reader = BufferedReader(InputStreamReader(inputStream))
 
         reader.use { r ->
             r.readLine()
 
-            var line = r.readLine()
-            while (line != null)
-            {
-                line = r.readLine()
+            var line: String?
 
+            while (r.readLine().also { line = it } != null)
+            {
                 val tokens = line?.split(';')
+
                 if (tokens != null && tokens.size == 3)
                 {
                     try
