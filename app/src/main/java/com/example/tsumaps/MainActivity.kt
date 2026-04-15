@@ -1,5 +1,6 @@
 package com.example.tsumaps
 
+//import androidx.compose.material3.adaptive.navigationsuite.item
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -10,6 +11,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
+//import androidx.compose.material3.adaptive.navigationsuite.item
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,26 +41,32 @@ fun TSUMapsApp() {
 
     NavigationSuiteScaffold(
         navigationSuiteItems = {
-            AppDestinations.entries.forEach {
+            AppDestinations.entries.forEach { destination ->
                 item(
                     icon = {
                         Icon(
-                            painterResource(it.icon),
-                            contentDescription = it.label
+                            painter = painterResource(id = destination.icon),
+                            contentDescription = destination.label
                         )
                     },
-                    label = { Text(it.label) },
-                    selected = it == currentDestination,
-                    onClick = { currentDestination = it }
+                    label = { Text(destination.label) },
+                    selected = destination == currentDestination,
+                    onClick = { currentDestination = destination }
                 )
             }
         }
     ) {
         Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
             when (currentDestination) {
-                AppDestinations.MAP -> Text("Маршруты (А*) - будет позже", modifier = Modifier.padding(innerPadding))
+                AppDestinations.MAP -> Text(
+                    text = "Маршруты (А*) - будет позже",
+                    modifier = Modifier.padding(innerPadding)
+                )
                 AppDestinations.FOOD -> FoodScreen(modifier = Modifier.padding(innerPadding))
-                AppDestinations.TOUR -> Text("Экскурсия (муравьиный) - будет позже", modifier = Modifier.padding(innerPadding))
+                AppDestinations.TOUR -> Text(
+                    text = "Экскурсия (муравьиный) - будет позже",
+                    modifier = Modifier.padding(innerPadding)
+                )
             }
         }
     }
