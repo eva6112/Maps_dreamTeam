@@ -174,7 +174,14 @@ class GeneticAlgorithm(
         val finalNodes = mutableListOf<RouteNode>()
         val remaining = targetItems.toMutableSet()
 
-        for (node in route) {
+        val processedRoute = if (Random.nextDouble() < 0.3) {
+            val startIndex = Random.nextInt(route.size)
+            route.subList(startIndex, route.size) + route.subList(0, startIndex)
+        } else {
+            route
+        }
+
+        for (node in processedRoute) {
             if (remaining.isEmpty()) break
             val canBuy = node.shop.items.intersect(remaining)
             if (canBuy.isNotEmpty()) {
