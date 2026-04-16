@@ -39,6 +39,10 @@ import com.example.tsumaps.clusterization.Centroid
 import com.example.tsumaps.clusterization.KMeans
 import com.example.tsumaps.clusterization.readPlacesFromCsv
 import com.example.tsumaps.R
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.platform.LocalConfiguration
+import android.content.res.Configuration
+
 
 @OptIn(ExperimentalMaterial3Api::class)                                 //получаем разрещение исползовать экспериметнальную фичу
 
@@ -55,7 +59,8 @@ fun ClusterScreen()
     val scaffoldState = rememberBottomSheetScaffoldState(bottomSheetState = sheetState)             //состояние для каркаса всего экрана
 
     val scope = rememberCoroutineScope()                                                            //для возможности ассинхронной работы
-
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     LaunchedEffect(Unit)                                                                            //ровно один раз, при запуске экрана
     {
         places = readPlacesFromCsv(context, "places_coordinates.csv")
@@ -63,8 +68,10 @@ fun ClusterScreen()
 
     BottomSheetScaffold(
         scaffoldState = scaffoldState,
-        sheetPeekHeight = 100.dp,                                                //высота выглядующего шита
-        sheetContent = { ClusterResultList(clusters = clusters) }                //содержимое шита
+        sheetPeekHeight = 50.dp,                                                //высота выглядующего шита
+        sheetContent = { ClusterResultList(clusters = clusters)} ,                        //содержимое шита
+        containerColor = MaterialTheme.colorScheme.primary,
+        sheetContainerColor = MaterialTheme.colorScheme.primary
     )
     {
         innerPadding ->                                                         //отступы, которые генерирует система (не совпадало с системными кнопками)
@@ -74,28 +81,34 @@ fun ClusterScreen()
 
             Row(modifier = Modifier
                     .align(Alignment.TopCenter)                                 //прижимаем наверх к центру
-                    .padding(top = 15.dp)
+                    .padding(top = if (isLandscape) 8.dp else 28.dp)
+                    .widthIn(max = if (isLandscape) 400.dp else 600.dp)
+                    .wrapContentHeight()
                     .clip(RoundedCornerShape(16.dp))
-                    .background(Color.Black.copy(alpha = 0.7f))
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically                  //выравнивание внутренних элементо по центру
             )
             {
                 OutlinedTextField(
                     value = kText,
                     onValueChange = { kText = it },                                             //действие при вводе
-                    label = { Text("Кол-во кластеров:") },
+                    label = if (!isLandscape) { { Text("Кластеры") } } else null,
+                    placeholder = { if (isLandscape) Text("Кластеры") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),      //показываем только цифры на клавиатуре
-                    modifier = Modifier.width(150.dp),
-
+                    modifier = Modifier
+                        .width(if (isLandscape) 120.dp else 150.dp)
+                        .height(if (isLandscape) 50.dp else 65.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.LightGray,
-                        cursorColor = Color.White,
-                        focusedBorderColor = Color.White,
-                        unfocusedBorderColor = Color.LightGray,
-                        focusedLabelColor = Color.White,
-                        unfocusedLabelColor = Color.LightGray,
+                        focusedTextColor = MaterialTheme.colorScheme.onPrimary,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f),
+                        cursorColor = MaterialTheme.colorScheme.onPrimary,
+                        focusedBorderColor = MaterialTheme.colorScheme.onPrimary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.5f),
+                        focusedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f),
+                        focusedPlaceholderColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.5f),
+                        unfocusedPlaceholderColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f)
                     )
                 )
 
@@ -131,6 +144,9 @@ fun ClusterResultList(clusters: Map<Centroid, List<Place>>)
             .padding(horizontal = 16.dp)
     )
     {
+
+
+
         item {
             Text(
                 text = "Результаты кластеризации:",
@@ -160,7 +176,7 @@ fun ClusterResultList(clusters: Map<Centroid, List<Place>>)
                         text = "Кластер №$clusterNumber",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.onPrimary
                     )
                     clusterPlaces.forEach { place ->
                         Text(
@@ -179,11 +195,15 @@ fun ClusterResultList(clusters: Map<Centroid, List<Place>>)
 fun ClusterMapRenderer(places: List<Place>, clusters: Map<Centroid, List<Place>>)
 {
     var mapOffset by remember { mutableStateOf(Offset.Zero) }                         //запоминаем смещение карты, когда пользователь водит пальцем
+    var zoom by remember { mutableFloatStateOf(0.6f) }
 
-    val gridWidth = 152                    //размеры матрицы и карты
+    val gridWidth = 152                                                                        //размеры матрицы и карты
     val gridHeight = 150
     val mapWidthDp = 3040.dp
     val mapHeightDp = 3000.dp
+
+    val scaledWidth = mapWidthDp * zoom
+    val scaledHeight = mapHeightDp * zoom
 
     val clusterColors = listOf(
         Color(0xCC8C1212),
@@ -208,18 +228,26 @@ fun ClusterMapRenderer(places: List<Place>, clusters: Map<Centroid, List<Place>>
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Gray)
+            .background(MaterialTheme.colorScheme.primary)
             .pointerInput(Unit)
             {
-                detectTransformGestures { _, pan, _, _ ->
-                    mapOffset += pan                                //прибавляем движение пальцем к смещению
+                detectTransformGestures { centroid, pan, zoomMultiplier, _ ->
+                    val oldZoom = zoom
+                    val newZoom = (oldZoom * zoomMultiplier).coerceIn(0.1f, 5f)
+                    val centroidOnMapX = (centroid.x - mapOffset.x) / oldZoom
+                    val centroidOnMapY = (centroid.y - mapOffset.y) / oldZoom
+                    val newMapOffsetX = centroid.x - centroidOnMapX * newZoom
+                    val newMapOffsetY = centroid.y - centroidOnMapY * newZoom
+                    mapOffset = Offset(newMapOffsetX, newMapOffsetY)
+                    zoom = newZoom
+                    mapOffset += pan
                 }
             }
     ) {
         Box(                                                                                    //бокс, перехватывающий касание экрана
             modifier = Modifier
                 .offset { IntOffset(mapOffset.x.roundToInt(), mapOffset.y.roundToInt()) }       //двигаем согласно mapOffset
-                .requiredSize(mapWidthDp, mapHeightDp)
+                .requiredSize(scaledWidth, scaledHeight)
         ) {
             Image(
                 painter = painterResource(id = R.drawable.map_color),
