@@ -4,10 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.Composable
@@ -15,13 +12,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import com.example.tsumaps.ant_algorithm.RouteScreen
 import com.example.tsumaps.navigation.AppDestinations
 import com.example.tsumaps.food.FoodScreen
 import com.example.tsumaps.ui.theme.TSUMapsTheme
 import com.example.tsumaps.map.MapScreen
+import androidx.compose.material3.MaterialTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -46,22 +43,22 @@ fun TSUMapsApp() {
                     icon = {
                         Icon(
                             painterResource(it.icon),
-                            contentDescription = it.label
+                            contentDescription = it.label,
+                            tint = MaterialTheme.colorScheme.primary
+
                         )
                     },
-                    label = { Text(it.label) },
+                    label = { Text(it.label, color = MaterialTheme.colorScheme.primary) },
                     selected = it == currentDestination,
                     onClick = { currentDestination = it }
                 )
             }
         }
-    ) {
-        Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-            when (currentDestination) {
-                AppDestinations.MAP -> MapScreen()
-                AppDestinations.FOOD -> FoodScreen(modifier = Modifier.padding(innerPadding))
-                AppDestinations.TOUR -> RouteScreen()
-            }
+        ) {
+        when (currentDestination) {
+            AppDestinations.MAP -> MapScreen()
+            AppDestinations.FOOD -> FoodScreen()
+            AppDestinations.TOUR -> RouteScreen()
         }
     }
 }
