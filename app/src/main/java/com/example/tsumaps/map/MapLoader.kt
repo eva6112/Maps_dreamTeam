@@ -20,5 +20,4 @@ object MapLoader {
             }
         }
     }
-    fun getColorMapResId(): Int = R.drawable.map_color
 }

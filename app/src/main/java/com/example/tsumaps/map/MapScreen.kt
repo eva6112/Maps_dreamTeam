@@ -16,18 +16,23 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
 import com.example.tsumaps.R
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.geometry.Size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.Alignment
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalConfiguration
+import android.content.res.Configuration
 
 @Composable
 fun MapScreen() {
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val matrix = remember { MapLoader.loadMatrix(context) }
     var mapOffset by remember { mutableStateOf(Offset.Zero) }
+    var zoom by remember { mutableFloatStateOf(0.6f) }
     var startPoint by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     var endPoint by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     var path by remember { mutableStateOf<List<Pair<Int, Int>>?>(null) }
@@ -36,17 +41,28 @@ fun MapScreen() {
     val gridHeight = 150
     val mapWidthDp = 3040.dp
     val mapHeightDp = 3000.dp
+    val scaledWidth = mapWidthDp * zoom
+    val scaledHeight = mapHeightDp * zoom
 
-    Box(modifier = Modifier.fillMaxSize().background(Color.Gray)) {
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.primary)
+        .pointerInput(Unit) {
+            detectTransformGestures { centroid, pan, zoomMultiplier, _ ->
+                val oldZoom = zoom
+                val newZoom = (oldZoom * zoomMultiplier).coerceIn(0.1f, 5f)
+                val centroidOnMapX = (centroid.x - mapOffset.x) / oldZoom
+                val centroidOnMapY = (centroid.y - mapOffset.y) / oldZoom
+                val newMapOffsetX = centroid.x - centroidOnMapX * newZoom
+                val newMapOffsetY = centroid.y - centroidOnMapY * newZoom
+                mapOffset = Offset(newMapOffsetX, newMapOffsetY)
+                zoom = newZoom
+                mapOffset += pan
+            }
+        }
+    ) {
         Box(
             modifier = Modifier
                 .offset { IntOffset(mapOffset.x.roundToInt(), mapOffset.y.roundToInt()) }
-                .requiredSize(mapWidthDp, mapHeightDp)
-                .pointerInput(Unit) {
-                    detectTransformGestures { _, pan, _, _ ->
-                        mapOffset += pan
-                    }
-                }
+                .requiredSize(scaledWidth, scaledHeight)
                 .pointerInput(Unit) {
                     detectTapGestures { pressOffset ->
                         val gridX = ((pressOffset.x / size.width) * gridWidth).toInt()
@@ -79,7 +95,6 @@ fun MapScreen() {
             Image(
                 painter = painterResource(id = R.drawable.map_color),
                 contentDescription = "Карта",
-                contentScale = ContentScale.FillBounds,
                 modifier = Modifier.fillMaxSize()
             )
 
@@ -105,11 +120,11 @@ fun MapScreen() {
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 40.dp)
-                .background(Color.Black.copy(alpha = 0.7f), shape = RoundedCornerShape(8.dp))
+                .padding( top = if (isLandscape) 8.dp else 40.dp)
+                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f), shape = RoundedCornerShape(8.dp))
                 .padding(12.dp)
         ) {
-            Text(text = debugInfo, color = Color.White)
+            Text(text = debugInfo, color = MaterialTheme.colorScheme.onPrimaryContainer)
         }
     }
 }

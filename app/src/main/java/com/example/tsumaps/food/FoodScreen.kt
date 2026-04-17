@@ -4,11 +4,12 @@ import androidx.compose.runtime.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.ui.Modifier
 import androidx.compose.material3.*
+import androidx.compose.runtime.saveable.rememberSaveable
 
 
 @Composable
 fun FoodScreen(modifier: Modifier = Modifier) {
-    var tabIndex by remember { mutableStateOf(0) }
+    var tabIndex by rememberSaveable { mutableIntStateOf(0) }
     val tabs = listOf("Кластеры", "Генетический", "Оценка", "Дерево")
     Column(
         modifier = modifier.fillMaxSize()
