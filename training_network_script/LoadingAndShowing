@@ -1,0 +1,101 @@
+import java.io.DataInputStream
+import java.io.File
+import java.io.FileInputStream
+
+fun loadAndScaleMnistData(
+    imagesFilePath: String = "train-images.idx3-ubyte",
+    labelsFilePath: String = "train-labels.idx1-ubyte"
+): Pair<Array<FloatArray>, IntArray> {
+
+    val imagesFile = File(imagesFilePath)
+    val labelsFile = File(labelsFilePath)
+
+    if (!imagesFile.exists() || !labelsFile.exists())
+    {
+        throw IllegalArgumentException("Файлы датасета не найдены! Проверь пути: $imagesFilePath и $labelsFilePath")
+    }
+
+    //чтение ответов
+    val labelsStream = DataInputStream(FileInputStream(labelsFile))
+    labelsStream.readInt()                              //пропускаем первые 4 байта
+    val numberOfLabels = labelsStream.readInt()         //количество ответов (60000)
+
+    val labels = IntArray(numberOfLabels)         //пустой массив ответов
+    for (i in 0 until numberOfLabels)
+    {
+        labels[i] = labelsStream.readUnsignedByte()      //ответ - это число от 0 до 9 (1 байт)
+    }
+    labelsStream.close()
+
+    //чтение картинок
+    val imagesStream = DataInputStream(FileInputStream(imagesFile))
+    imagesStream.readInt()
+    val numberOfImages = imagesStream.readInt()    //чиатем кол-во картинок
+    val numRows = imagesStream.readInt()           //28
+    val numCols = imagesStream.readInt()
+
+    val scaledSize = 50
+    val scaledVectorSize = scaledSize * scaledSize //2500
+
+    val images = Array(numberOfImages)      //итоговый массив картинок
+    {
+        FloatArray(scaledVectorSize)
+    }
+
+    println("Чтение и масштабирование $numberOfImages картинок")
+
+    for (i in 0 until numberOfImages)
+    {
+        //читаем 1 оригинальную картинку
+        val originalImageBytes = ByteArray(numRows * numCols)       //массив 28*28
+        imagesStream.readFully(originalImageBytes)                    //читаем кусок размером в 1 картинку
+
+        val scaledImage = FloatArray(scaledVectorSize)                    //массив для будущей картинки 50*50
+
+        //Nearest Neighbour Algorithm
+        for (y in 0 until scaledSize)
+        {
+            for (x in 0 until scaledSize)
+            {
+                //находим, какому пикселю в оригинале соответствует текущий пиксель 50x50
+                val origX = (x * numCols) / scaledSize
+                val origY = (y * numRows) / scaledSize
+
+                //достаем значение цвета (0 до 255), 0х - для отрицательности джавы
+                val pixelValue = originalImageBytes[origY * numCols + origX].toInt() and 0xFF
+
+                //нормализация
+                val normalized = pixelValue / 255.0f
+
+                //если пиксель достаточно яркий, считаем его закрашенным, иначе фон
+                scaledImage[y * scaledSize + x] =
+                    if (normalized > 0.25f)
+                        1.0f
+                    else
+                        0.0f
+            }
+        }
+        images[i] = scaledImage                     //готовая картинка сохраняется в массив
+    }
+    imagesStream.close()
+
+    return Pair(images, labels)
+}
+
+
+fun main()
+{
+    println("Инициализация нейросети (2500 входов, 128 скрытых, 10 выходов)")
+    val network = NeuralNetwork(inputSize = 2500, hiddenSize = 128, outputSize = 10)
+
+    println("Загрузка датасета")
+    val (xTrain, yTrainLabels) = loadAndScaleMnistData()
+
+    println("Начинаем обучение")
+    val epochs = 30
+    val learningRate = 0.1f
+    network.train(xTrain, yTrainLabels, epochs, learningRate)
+
+    network.saveWeightsToJson("weights.json")
+    println("Обучение завершено")
+}

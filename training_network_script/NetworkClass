@@ -1,0 +1,147 @@
+import kotlin.math.exp
+import kotlin.random.Random
+import java.io.File
+
+class NeuralNetwork(
+    private val inputSize: Int = 2500,
+    private val hiddenSize: Int = 128,                          //128 нейронов в скрытом слое
+    private val outputSize: Int = 10
+) {
+    private val W1: Array<FloatArray> = Array(hiddenSize)       //матрица между входом и скрытым слоем (128 * 2500)
+    {
+        FloatArray(inputSize) { Random.nextFloat() - 0.5f }     //случайные числа (-0,5 - 0,5)
+    }
+    private val b1: FloatArray = FloatArray(hiddenSize)         //смещения скрытого слоя
+    { 0f }
+
+    private val W2: Array<FloatArray> = Array(outputSize)
+    {
+        FloatArray(hiddenSize) { Random.nextFloat() - 0.5f }    //веса между скрытым слоем и выходом (10 * 128)
+    }
+    private val b2: FloatArray = FloatArray(outputSize)
+    { 0f }
+
+    private fun sigmoid(x: Float):
+            Float = 1.0f / (1.0f + exp(-x))                 //функция активации (в диапазон от 0 до 1)
+
+    private fun sigmoidDerivative(a: Float):                    //производная сигмоиды (крутизна ошибки)
+            Float = a * (1.0f - a)
+
+    fun train(xTrain: Array<FloatArray>, yTrainLabels: IntArray, epochs: Int,
+              learningRate: Float = 0.1f)
+    {
+        val samplesCount = xTrain.size                          //60000 картинок
+
+        for (epoch in 0 until epochs)
+        {
+            var correctGuesses = 0
+
+            for (i in 0 until samplesCount)
+            {
+                val x = xTrain[i]
+                val targetLabel = yTrainLabels[i]
+
+                val y = FloatArray(outputSize) { 0f }
+                y[targetLabel] = 1.0f                            //one-hot encoding
+
+                // 1. Прямое распространение
+                val a1 = FloatArray(hiddenSize)                  //считаем сигналы для скрытого слоя (128)
+                for (h in 0 until hiddenSize)
+                {
+                    var z1 = b1[h]                               //начинаем со смещения
+                    for (j in 0 until inputSize)
+                    {
+                        z1 += W1[h][j] * x[j]                    //входной пиксель * вес связи
+                    }
+                    a1[h] = sigmoid(z1)                          //а1 - выходы скрытого слоя
+                }
+
+                val a2 = FloatArray(outputSize)                  //считаем сигналы для выходного слоя (10 нейронов)
+                var predictedDigit = 0
+                var maxProb = -1f
+
+                for (o in 0 until outputSize)
+                {
+                    var z2 = b2[o]                               //начинаем со смещения
+                    for (h in 0 until hiddenSize)
+                    {
+                        z2 += W2[o][h] * a1[h]                   //вход - результаты скрытого слоя
+                    }
+                    a2[o] = sigmoid(z2)                          //а2 массив из 10 вероятностей (ответ сети)
+
+                    if (a2[o] > maxProb)                         //поиск индекса с максимальной вероятностью
+                    {
+                        maxProb = a2[o]
+                        predictedDigit = o
+                    }
+                }
+
+                if (predictedDigit == targetLabel)
+                    correctGuesses++
+
+                // 2. Обратное распространение
+                val deltaOutput = FloatArray(outputSize)
+                for (o in 0 until outputSize)
+                {
+                    deltaOutput[o] = (a2[o] - y[o]) * sigmoidDerivative(a2[o])      //разница * градиент (вектор куда менять веса)
+                }
+
+                val deltaHidden = FloatArray(hiddenSize)
+                for (h in 0 until hiddenSize)
+                {
+                    var errorHidden = 0f
+                    for (o in 0 until outputSize)
+                    {
+                        errorHidden += W2[o][h] * deltaOutput[o]                         //ошибка проталкиватся назад через веса W2
+                    }
+                    deltaHidden[h] = errorHidden * sigmoidDerivative(a1[h])              //снова умножается на производную
+                }
+
+                // 3. Обновление весов
+                //от скрытого к выходу
+                for (o in 0 until outputSize)
+                {
+                    for (h in 0 until hiddenSize)
+                    {
+                        W2[o][h] -= learningRate * deltaOutput[o] * a1[h]
+                    }
+                    b2[o] -= learningRate * deltaOutput[o]                               //для смещения b входящий сигнал всегда равен 1
+                }
+
+                //от входа к скрытому
+                for (h in 0 until hiddenSize)
+                {
+                    for (j in 0 until inputSize)
+                    {
+                        W1[h][j] -= learningRate * deltaHidden[h] * x[j]
+                    }
+                    b1[h] -= learningRate * deltaHidden[h]
+                }
+            }
+
+            val accuracy = (correctGuesses.toFloat() / samplesCount) * 100
+            println("Эпоха ${epoch + 1}/$epochs. Точность: %.2f%%".format(accuracy))
+        }
+    }
+
+    fun saveWeightsToJson(filePath: String)
+    {
+        println("Сохранение весов в файл...")
+        val W1Json = W1.contentDeepToString()
+        val b1Json = b1.contentToString()
+        val W2Json = W2.contentDeepToString()
+        val b2Json = b2.contentToString()
+
+        val jsonString = """
+            {
+                "hidden_weights": $W1Json,
+                "hidden_biases": $b1Json,
+                "output_weights": $W2Json,
+                "output_biases": $b2Json
+            }
+        """.trimIndent()
+
+        File(filePath).writeText(jsonString)
+        println("Успешно сохранено в: $filePath")
+    }
+}
