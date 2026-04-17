@@ -72,6 +72,14 @@ class Individual(
             currentTime += 5.0
             currentPoint = shopPoint
         }
+
+        // ВОЗВРАТ В СТАРТОВУЮ ТОЧКУ
+        val returnDistanceCells = sqrt(
+            (startPoint.x - currentPoint.x).pow(2) +
+                    (startPoint.y - currentPoint.y).pow(2)
+        )
+        val returnDistanceKm = returnDistanceCells * MapData.CELL_SIZE_KM
+        totalDistance += returnDistanceKm
     }
 
     val fitness: Double get() = 1.0 / (totalDistance + timePenalty + 1.0)
