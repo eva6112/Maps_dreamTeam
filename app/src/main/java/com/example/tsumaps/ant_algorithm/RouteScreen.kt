@@ -1,20 +1,24 @@
 package com.example.tsumaps.ant_algorithm
 
 import android.Manifest
+import android.content.res.Configuration
 import android.location.Location
 import android.widget.Toast
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -28,9 +32,11 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -38,6 +44,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -51,32 +59,37 @@ import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import android.annotation.SuppressLint
+
+// Цветовая схема ТГУ
+val TsuBlue = Color(0xFF0072BC)
+val TsuDarkBlue = Color(0xFF023B61)
+val TsuLightBlue = Color(0xFF1397F1)
+val TsuWhite = Color(0xFFFFFFFF)
+val TsuDark = Color(0xFF021521)
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun RouteScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-    // Состояния
     var selectedIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var currentGps by remember { mutableStateOf<GpsLocation?>(null) }
     var isLocating by remember { mutableStateOf(false) }
     var isCalculating by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<AntResult?>(null) }
 
-    // Состояния для прокрутки с видимой полосой
+    var listHeightPercent by remember { mutableFloatStateOf(0.5f) }
+
     val listState = rememberLazyListState()
     val resultScrollState = rememberScrollState()
 
-    // Разрешение на геолокацию
     val locationPermissionState = rememberPermissionState(Manifest.permission.ACCESS_FINE_LOCATION)
 
     val attractions = Attractions.allAttractions
 
-    // Получение GPS с демо-режимом
-    @SuppressLint("MissingPermission")
     fun getCurrentLocation() {
         if (!locationPermissionState.status.isGranted) {
             locationPermissionState.launchPermissionRequest()
@@ -93,14 +106,14 @@ fun RouteScreen() {
             fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
                 location?.let {
                     currentGps = GpsLocation(it.latitude, it.longitude)
-                    Toast.makeText(context, "📍 Местоположение определено", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Местоположение определено", Toast.LENGTH_SHORT).show()
                 } ?: run {
-                    Toast.makeText(context, "⚠️ GPS не определён, используем демо-точку", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "GPS не определён, используем демо-точку", Toast.LENGTH_SHORT).show()
                     currentGps = GpsLocation(56.466000, 84.949000)
                 }
                 isLocating = false
             }.addOnFailureListener {
-                Toast.makeText(context, "❌ Ошибка GPS, используем демо-точку", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Ошибка GPS, используем демо-точку", Toast.LENGTH_SHORT).show()
                 currentGps = GpsLocation(56.466000, 84.949000)
                 isLocating = false
             }
@@ -109,7 +122,6 @@ fun RouteScreen() {
         }
     }
 
-    // Поиск маршрута
     fun findRoute() {
         if (selectedIds.isEmpty()) {
             Toast.makeText(context, "Выберите хотя бы одну достопримечательность", Toast.LENGTH_SHORT).show()
@@ -117,15 +129,11 @@ fun RouteScreen() {
         }
 
         if (currentGps == null) {
-            Toast.makeText(context, "⚠️ GPS не определён, используем демо-точку", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "GPS не определён, используем демо-точку", Toast.LENGTH_SHORT).show()
             currentGps = GpsLocation(56.466000, 84.949000)
         }
 
         val selectedPoints = Attractions.getPointsByIds(selectedIds.toList())
-        if (selectedPoints.isEmpty()) {
-            Toast.makeText(context, "Не удалось загрузить точки", Toast.LENGTH_SHORT).show()
-            return
-        }
 
         isCalculating = true
         result = null
@@ -136,308 +144,650 @@ fun RouteScreen() {
                     val antColony = AntColony(
                         selectedPoints = selectedPoints,
                         userGps = currentGps!!,
-                        numAnts = 25,
-                        iterations = 150
+                        numAnts = 15,
+                        iterations = 80
                     )
                     val routeResult = antColony.findOptimalRoute()
 
                     withContext(Dispatchers.Main) {
                         result = routeResult
                         isCalculating = false
-                        Toast.makeText(context, "✅ Маршрут найден на итерации ${routeResult.foundAtIteration}", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, "Маршрут найден на итерации ${routeResult.foundAtIteration}", Toast.LENGTH_LONG).show()
                     }
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
                         isCalculating = false
                         Toast.makeText(context, "Ошибка: ${e.message}", Toast.LENGTH_LONG).show()
-                        e.printStackTrace()
                     }
                 }
             }
         }
     }
 
-    // UI
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFFF5F5F5))
-            .padding(16.dp)
+    if (isLandscape) {
+        LandscapeRouteScreen(
+            attractions = attractions,
+            selectedIds = selectedIds,
+            onSelectedIdsChange = { selectedIds = it },
+            currentGps = currentGps,
+            isLocating = isLocating,
+            isCalculating = isCalculating,
+            result = result,
+            onGetLocation = { getCurrentLocation() },
+            onFindRoute = { findRoute() },
+            onClear = { selectedIds = emptySet() }
+        )
+    } else {
+        PortraitRouteScreen(
+            attractions = attractions,
+            selectedIds = selectedIds,
+            onSelectedIdsChange = { selectedIds = it },
+            currentGps = currentGps,
+            isLocating = isLocating,
+            isCalculating = isCalculating,
+            result = result,
+            onGetLocation = { getCurrentLocation() },
+            onFindRoute = { findRoute() },
+            onClear = { selectedIds = emptySet() },
+            listHeightPercent = listHeightPercent,
+            onListHeightChange = { listHeightPercent = it }
+        )
+    }
+}
+
+// Портретная разметка с оптимизированным растягиванием
+@Composable
+fun PortraitRouteScreen(
+    attractions: List<RoutePoint>,
+    selectedIds: Set<Int>,
+    onSelectedIdsChange: (Set<Int>) -> Unit,
+    currentGps: GpsLocation?,
+    isLocating: Boolean,
+    isCalculating: Boolean,
+    result: AntResult?,
+    onGetLocation: () -> Unit,
+    onFindRoute: () -> Unit,
+    onClear: () -> Unit,
+    listHeightPercent: Float,
+    onListHeightChange: (Float) -> Unit
+) {
+    val listState = rememberLazyListState()
+    val resultScrollState = rememberScrollState()
+
+    var isDragging by remember { mutableStateOf(false) }
+    var localHeight by remember { mutableFloatStateOf(listHeightPercent) }
+
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = TsuWhite
     ) {
-        // Заголовок
-        Text(
-            text = "🐜 Муравьиный алгоритм",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF2C3E50),
-            modifier = Modifier.fillMaxWidth(),
-            textAlign = TextAlign.Center
-        )
-
-        Text(
-            text = "Оптимизация маршрута по достопримечательностям ТГУ",
-            fontSize = 14.sp,
-            color = Color(0xFF7F8C8D),
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 8.dp),
-            textAlign = TextAlign.Center
-        )
-
-        // Список достопримечательностей с прокруткой
-        Text(
-            text = "📋 Выберите достопримечательности:",
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 4.dp)
-        )
-
-        // 🔧 LazyColumn автоматически показывает полосу прокрутки при необходимости
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(250.dp)
-                .padding(bottom = 8.dp),
-            shape = RoundedCornerShape(8.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
+                .fillMaxSize()
+                .padding(16.dp)
         ) {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxSize()
+            AppHeader()
+
+            Text(
+                text = "Выберите достопримечательности:",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = TsuDarkBlue,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+
+            // Блок со списком
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(localHeight)
+                    .padding(bottom = 4.dp)
             ) {
-                items(attractions) { attraction ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                selectedIds = if (selectedIds.contains(attraction.id)) {
-                                    selectedIds.minus(attraction.id)
-                                } else {
-                                    selectedIds.plus(attraction.id)
-                                }
-                            }
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                Card(
+                    modifier = Modifier.fillMaxSize(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = TsuWhite),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize()
                     ) {
-                        Checkbox(
-                            checked = selectedIds.contains(attraction.id),
-                            onCheckedChange = null
-                        )
-                        Column(modifier = Modifier.padding(start = 8.dp)) {
-                            Text(
-                                text = attraction.name,
-                                fontWeight = FontWeight.Medium,
-                                fontSize = 14.sp
-                            )
-                            Text(
-                                text = attraction.description,
-                                fontSize = 11.sp,
-                                color = Color.Gray,
-                                maxLines = 1
+                        items(attractions) { attraction ->
+                            AttractionListItem(
+                                attraction = attraction,
+                                isSelected = selectedIds.contains(attraction.id),
+                                onToggle = {
+                                    onSelectedIdsChange(
+                                        if (selectedIds.contains(attraction.id)) {
+                                            selectedIds.minus(attraction.id)
+                                        } else {
+                                            selectedIds.plus(attraction.id)
+                                        }
+                                    )
+                                }
                             )
                         }
                     }
-                    HorizontalDivider()
                 }
             }
-        }
 
-        // Информация о выборе
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 8.dp),
-            shape = RoundedCornerShape(8.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFECF0F1))
-        ) {
-            Text(
-                text = "✅ Выбрано: ${selectedIds.size} / ${attractions.size}",
-                modifier = Modifier.padding(12.dp),
-                fontSize = 14.sp
-            )
-        }
-
-        // Кнопки в ряд
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Button(
-                onClick = { selectedIds = emptySet() },
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE74C3C))
+            // Разделитель с ползунком для перетаскивания
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(40.dp)
+                    .padding(vertical = 4.dp)
+                    .pointerInput(Unit) {
+                        detectDragGestures(
+                            onDragStart = {
+                                isDragging = true
+                            },
+                            onDragEnd = {
+                                isDragging = false
+                                onListHeightChange(localHeight)
+                            },
+                            onDragCancel = {
+                                isDragging = false
+                                onListHeightChange(localHeight)
+                            },
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                val delta = dragAmount.y / 800f
+                                val newHeight = (localHeight + delta).coerceIn(0.15f, 0.75f)
+                                localHeight = newHeight
+                            }
+                        )
+                    },
+                contentAlignment = Alignment.Center
             ) {
-                Text("🗑️ Очистить")
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(80.dp)
+                            .height(6.dp)
+                            .background(
+                                color = if (isDragging) TsuBlue else TsuLightBlue,
+                                shape = RoundedCornerShape(3.dp)
+                            )
+                    )
+                }
             }
 
-            Button(
-                onClick = { getCurrentLocation() },
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3498DB)),
-                enabled = !isLocating
-            ) {
-                Text(if (isLocating) "⏳ Поиск..." else "📍 GPS")
-            }
-        }
-
-        // Статус местоположения
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            shape = RoundedCornerShape(8.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = if (currentGps != null) Color(0xFFC8E6C9) else Color(0xFFFFF3E0)
-            )
-        ) {
             Text(
-                text = currentGps?.let { "📍 Широта: ${String.format("%.4f", it.latitude)}, Долгота: ${String.format("%.4f", it.longitude)}" }
-                    ?: "⏳ Нажмите GPS для определения местоположения",
-                modifier = Modifier.padding(12.dp),
-                fontSize = 12.sp
+                text = "📊 РЕЗУЛЬТАТ:",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = TsuDarkBlue,
+                modifier = Modifier.padding(bottom = 4.dp)
             )
-        }
 
-        // Кнопка поиска маршрута
-        Button(
-            onClick = { findRoute() },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 8.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF27AE60)),
-            enabled = !isCalculating && selectedIds.isNotEmpty()
-        ) {
-            Text(if (isCalculating) "⏳ Поиск маршрута..." else "🚀 НАЙТИ МАРШРУТ")
-        }
-
-        // Результат с прокруткой и видимой полосой
-        Text(
-            text = "📊 РЕЗУЛЬТАТ:",
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 4.dp)
-        )
-
-        // 🔧 Используем Column + verticalScroll для видимой полосы прокрутки
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .padding(bottom = 8.dp),
-            shape = RoundedCornerShape(8.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
-        ) {
-            if (isCalculating) {
-                Box(
+            // Блок с результатом
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f - 0.2f - localHeight)
+                    .padding(bottom = 4.dp)
+            ) {
+                Card(
                     modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = TsuWhite),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    ResultContent(
+                        isCalculating = isCalculating,
+                        result = result,
+                        scrollState = resultScrollState
+                    )
+                }
+            }
+
+            SelectionInfoCard(selectedIds.size, attractions.size)
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = onClear,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = TsuDark)
+                ) {
+                    Text("🗑️ Очистить", color = TsuWhite)
+                }
+
+                Button(
+                    onClick = onGetLocation,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = TsuBlue),
+                    enabled = !isLocating
+                ) {
+                    Text(if (isLocating) "⏳ Поиск..." else "GPS", color = TsuWhite)
+                }
+            }
+
+            GpsStatusCard(currentGps)
+
+            Button(
+                onClick = onFindRoute,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = TsuDarkBlue),
+                enabled = !isCalculating && selectedIds.isNotEmpty()
+            ) {
+                Text(
+                    if (isCalculating) "⏳ Поиск маршрута..." else "🚀 НАЙТИ МАРШРУТ",
+                    color = TsuDark,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+// Ландшафтная разметка - три колонки с уменьшенными кнопками
+@Composable
+fun LandscapeRouteScreen(
+    attractions: List<RoutePoint>,
+    selectedIds: Set<Int>,
+    onSelectedIdsChange: (Set<Int>) -> Unit,
+    currentGps: GpsLocation?,
+    isLocating: Boolean,
+    isCalculating: Boolean,
+    result: AntResult?,
+    onGetLocation: () -> Unit,
+    onFindRoute: () -> Unit,
+    onClear: () -> Unit
+) {
+    val listState = rememberLazyListState()
+    val resultScrollState = rememberScrollState()
+
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = TsuWhite
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(25.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // ЛЕВАЯ КОЛОНКА - выбор достопримечательностей
+            Column(
+                modifier = Modifier
+                    .weight(0.4f)
+                    .fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = "Достопримечательности",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TsuDarkBlue
+                )
+
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = CardDefaults.cardColors(containerColor = TsuWhite),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(vertical = 4.dp)
+                    ) {
+                        items(attractions) { attraction ->
+                            AttractionListItem(
+                                attraction = attraction,
+                                isSelected = selectedIds.contains(attraction.id),
+                                onToggle = {
+                                    onSelectedIdsChange(
+                                        if (selectedIds.contains(attraction.id)) {
+                                            selectedIds.minus(attraction.id)
+                                        } else {
+                                            selectedIds.plus(attraction.id)
+                                        }
+                                    )
+                                },
+                                compact = true
+                            )
+                        }
+                    }
+                }
+
+                SelectionInfoCard(selectedIds.size, attractions.size, compact = true)
+            }
+
+            // СРЕДНЯЯ КОЛОНКА - кнопки управления
+            Column(
+                modifier = Modifier
+                    .weight(0.2f)
+                    .fillMaxSize()
+                    .padding(start=8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "ТГУ",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TsuDarkBlue,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.weight(0.2f))
+
+                Button(
+                    onClick = onGetLocation,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = TsuBlue),
+                    enabled = !isLocating,
+                    contentPadding = PaddingValues(4.dp)
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator()
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("Поиск оптимального маршрута...", fontSize = 12.sp)
-                        Text("Муравьиный алгоритм работает", fontSize = 10.sp, color = Color.Gray)
+                        Text("📍", fontSize = 20.sp)
+                        Text(
+                            if (isLocating) "Поиск" else "GPS",
+                            fontSize = 10.sp,
+                            color = TsuWhite
+                        )
                     }
                 }
-            } else if (result != null) {
-                // Используем Column с verticalScroll для видимой полосы прокрутки
-                Column(
+
+                Button(
+                    onClick = onClear,
                     modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(resultScrollState)
-                        .padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = TsuDark),
+                    contentPadding = PaddingValues(4.dp)
                 ) {
-                    Text(
-                        text = "🐜 ОПТИМАЛЬНЫЙ МАРШРУТ",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Найден на итерации: ${result!!.foundAtIteration}",
-                        fontSize = 12.sp
-                    )
-                    Text(
-                        text = "Длина маршрута: ${String.format("%.2f", result!!.totalDistance)}",
-                        fontSize = 12.sp
-                    )
-                    Text(
-                        text = "Стартовая точка: ${result!!.startPoint.name}",
-                        fontSize = 12.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = "📋 ПОРЯДОК ОБХОДА:",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    // Список маршрута
-                    result!!.route.forEachIndexed { index, point ->
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFFF0F8FF))
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(10.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "${index + 1}.",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF27AE60),
-                                    modifier = Modifier.padding(end = 8.dp)
-                                )
-                                Column {
-                                    Text(
-                                        text = point.name,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                    if (point.description.isNotEmpty()) {
-                                        Text(
-                                            text = point.description,
-                                            fontSize = 10.sp,
-                                            color = Color.Gray,
-                                            maxLines = 2
-                                        )
-                                    }
-                                }
-                            }
-                        }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("🗑️", fontSize = 20.sp)
+                        Text("Сброс", fontSize = 10.sp, color = TsuWhite)
                     }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = "✨ Маршрут оптимизирован с помощью муравьиного алгоритма!",
-                        fontSize = 10.sp,
-                        color = Color(0xFF27AE60),
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
                 }
-            } else {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
+
+                Button(
+                    onClick = onFindRoute,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(65.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = TsuDarkBlue),
+                    enabled = !isCalculating && selectedIds.isNotEmpty(),
+                    contentPadding = PaddingValues(4.dp)
                 ) {
-                    Text(
-                        text = "Выберите точки, определите GPS и нажмите «Найти маршрут»",
-                        fontSize = 12.sp,
-                        color = Color.Gray,
-                        textAlign = TextAlign.Center
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            if (isCalculating) "⏳" else "🚀",
+                            fontSize = 24.sp
+                        )
+                        Text(
+                            if (isCalculating) "Поиск" else "Пуск",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TsuWhite
+                        )
+                    }
+                }
+
+                GpsStatusCard(currentGps, compact = true)
+
+                Spacer(modifier = Modifier.weight(0.3f))
+            }
+
+            // ПРАВАЯ КОЛОНКА - результат
+            Column(
+                modifier = Modifier
+                    .weight(0.4f)
+                    .fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = "📊 РЕЗУЛЬТАТ",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TsuDarkBlue
+                )
+
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxSize(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = CardDefaults.cardColors(containerColor = TsuWhite),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    ResultContent(
+                        isCalculating = isCalculating,
+                        result = result,
+                        scrollState = resultScrollState,
+                        compact = true
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun AppHeader(compact: Boolean = false) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 22.dp)
+    ) {
+        Text(
+            text = "Муравьиный алгоритм",
+            fontSize = if (compact) 16.sp else 22.sp,
+            fontWeight = FontWeight.Bold,
+            color = TsuDarkBlue
+        )
+        if (!compact) {
+            Text(
+                text = "Оптимизация маршрута по достопримечательностям ТГУ",
+                fontSize = 11.sp,
+                color = TsuDark,
+                textAlign = TextAlign.Center
+            )
+        }
+        Spacer(modifier = Modifier.height(if (compact) 4.dp else 8.dp))
+    }
+}
+
+@Composable
+fun AttractionListItem(
+    attraction: RoutePoint,
+    isSelected: Boolean,
+    onToggle: () -> Unit,
+    compact: Boolean = false
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onToggle() }
+            .padding(if (compact) 8.dp else 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Checkbox(
+            checked = isSelected,
+            onCheckedChange = null,
+            colors = androidx.compose.material3.CheckboxDefaults.colors(
+                checkedColor = TsuBlue
+            )
+        )
+        Column(modifier = Modifier.padding(start = 8.dp)) {
+            Text(
+                text = attraction.name,
+                fontWeight = FontWeight.Medium,
+                fontSize = if (compact) 11.sp else 13.sp,
+                color = TsuDark
+            )
+            if (!compact) {
+                Text(
+                    text = attraction.description,
+                    fontSize = 10.sp,
+                    color = TsuDark,
+                    maxLines = 1
+                )
+            }
+        }
+    }
+    HorizontalDivider(color = TsuLightBlue.copy(alpha = 0.3f))
+}
+
+@Composable
+fun SelectionInfoCard(selectedCount: Int, totalCount: Int, compact: Boolean = false) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = TsuLightBlue.copy(alpha = 0.15f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Text(
+            text = "✅ Выбрано: $selectedCount / $totalCount",
+            modifier = Modifier.padding(if (compact) 6.dp else 10.dp),
+            fontSize = if (compact) 10.sp else 12.sp,
+            color = TsuDarkBlue,
+            fontWeight = FontWeight.Medium
+        )
+    }
+}
+
+@Composable
+fun GpsStatusCard(currentGps: GpsLocation?, compact: Boolean = false) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (currentGps != null) TsuBlue.copy(alpha = 0.1f)
+            else TsuDark.copy(alpha = 0.1f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Text(
+            text = if (currentGps != null) {
+                if (compact) "📍 ${String.format("%.2f", currentGps.latitude)}, ${String.format("%.2f", currentGps.longitude)}"
+                else "📍 Широта: ${String.format("%.4f", currentGps.latitude)}, Долгота: ${String.format("%.4f", currentGps.longitude)}"
+            } else "⏳ Нажмите GPS",
+            modifier = Modifier.padding(if (compact) 6.dp else 10.dp),
+            fontSize = if (compact) 9.sp else 11.sp,
+            color = if (currentGps != null) TsuBlue else TsuDark
+        )
+    }
+}
+
+@Composable
+fun ResultContent(
+    isCalculating: Boolean,
+    result: AntResult?,
+    scrollState: ScrollState,
+    compact: Boolean = false
+) {
+    if (isCalculating) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                CircularProgressIndicator(color = TsuBlue)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Поиск маршрута...", fontSize = if (compact) 11.sp else 12.sp, color = TsuDark)
+            }
+        }
+    } else if (result != null) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(if (compact) 8.dp else 12.dp),
+            verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 8.dp)
+        ) {
+            Text(
+                text = "ОПТИМАЛЬНЫЙ МАРШРУТ",
+                fontSize = if (compact) 11.sp else 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = TsuDarkBlue
+            )
+            Text(
+                text = "Итерация: ${result.foundAtIteration}",
+                fontSize = if (compact) 9.sp else 11.sp,
+                color = TsuDark
+            )
+            Text(
+                text = "Длина: ${String.format("%.2f", result.totalDistance)} м",
+                fontSize = if (compact) 9.sp else 11.sp,
+                color = TsuDark
+            )
+            Text(
+                text = "Старт: ${result.startPoint.name}",
+                fontSize = if (compact) 9.sp else 11.sp,
+                color = TsuDark
+            )
+
+            Spacer(modifier = Modifier.height(if (compact) 4.dp else 8.dp))
+
+            Text(
+                text = "📋 ПОРЯДОК ОБХОДА:",
+                fontSize = if (compact) 10.sp else 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = TsuBlue
+            )
+
+            result.route.forEachIndexed { index, point ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = CardDefaults.cardColors(containerColor = TsuLightBlue.copy(alpha = 0.1f)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(if (compact) 8.dp else 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "${index + 1}.",
+                            fontSize = if (compact) 10.sp else 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TsuBlue,
+                            modifier = Modifier.padding(end = 8.dp)
+                        )
+                        Text(
+                            text = point.name,
+                            fontSize = if (compact) 10.sp else 12.sp,
+                            color = TsuDark
+                        )
+                    }
+                }
+            }
+        }
+    } else {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Выберите точки и нажмите «Найти»",
+                fontSize = if (compact) 10.sp else 12.sp,
+                color = TsuDark,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(16.dp)
+            )
         }
     }
 }
