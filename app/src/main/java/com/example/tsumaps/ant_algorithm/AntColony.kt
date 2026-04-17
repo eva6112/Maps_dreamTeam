@@ -4,9 +4,6 @@ import kotlin.math.pow
 import kotlin.math.sqrt
 import kotlin.random.Random
 
-/**
- * Точка маршрута (достопримечательность) — координаты на карте (x, y)
- */
 data class RoutePoint(
     val id: Int,
     val name: String,
@@ -15,17 +12,12 @@ data class RoutePoint(
     val description: String = ""
 )
 
-/**
- * GPS-позиция пользователя
- */
 data class GpsLocation(
     val latitude: Double,
     val longitude: Double
 )
 
-/**
- * Результат работы алгоритма
- */
+
 data class AntResult(
     val route: List<RoutePoint>,
     val totalDistance: Double,
@@ -33,13 +25,10 @@ data class AntResult(
     val startPoint: RoutePoint
 )
 
-/**
- * Муравьиный алгоритм для поиска оптимального маршрута
- */
 class AntColony(
     private val selectedPoints: List<RoutePoint>,
     private val userGps: GpsLocation,
-    private val numAnts: Int = 50,
+    private val numAnts: Int = 10,
     private val alpha: Double = 1.0,
     private val beta: Double = 1.0,
     private val evaporation: Double = 0.7,
@@ -52,13 +41,13 @@ class AntColony(
     private val pheromones = Array(n) { DoubleArray(n) { 1.0 } }
     private val startId: Int
 
-    // Границы карты ТГУ
     companion object {
         private const val MIN_LAT = 56.464983   // юг
         private const val MAX_LAT = 56.471848   // север
         private const val MIN_LON = 84.941164   // запад
         private const val MAX_LON = 84.953859   // восток
-        private const val MAP_SIZE = 150        // 150x150 пикселей
+        private const val MAP_SIZE_X = 152
+        private const val MAP_SIZE_Y = 150 // 152x150 пикселей
     }
 
     init {
@@ -79,24 +68,16 @@ class AntColony(
         startId = findNearestPointToGps()
     }
 
-    /**
-     * Преобразует GPS-координаты в координаты карты (x, y)
-     */
     private fun gpsToMapCoords(gps: GpsLocation): Pair<Int, Int> {
-        // Долгота -> X (от запада к востоку)
-        val x = ((gps.longitude - MIN_LON) / (MAX_LON - MIN_LON) * MAP_SIZE).toInt()
-            .coerceIn(0, MAP_SIZE)
+        val x = ((gps.longitude - MIN_LON) / (MAX_LON - MIN_LON) * MAP_SIZE_X).toInt()
+            .coerceIn(0, MAP_SIZE_X - 1)
 
-        // Широта -> Y (от севера к югу, поэтому переворачиваем)
-        val y = MAP_SIZE - ((gps.latitude - MIN_LAT) / (MAX_LAT - MIN_LAT) * MAP_SIZE).toInt()
-            .coerceIn(0, MAP_SIZE)
+        val y = MAP_SIZE_Y - ((gps.latitude - MIN_LAT) / (MAX_LAT - MIN_LAT) * MAP_SIZE_Y).toInt()
+            .coerceIn(0, MAP_SIZE_Y - 1)
 
         return Pair(x, y)
     }
 
-    /**
-     * Находит ближайшую выбранную точку к GPS-позиции пользователя
-     */
     private fun findNearestPointToGps(): Int {
         val (userX, userY) = gpsToMapCoords(userGps)
 
@@ -120,11 +101,13 @@ class AntColony(
     fun findOptimalRoute(): AntResult {
         var bestDistance = Double.MAX_VALUE
         var bestRouteIndices = emptyList<Int>()
-        var bestIteration = 0
+        var WhichIteration = 0
+        var Iteration = 0
+        var ChangeOrNot: Int = 0
 
         repeat(iterations) { iteration ->
             val allRoutes = mutableListOf<Pair<List<Int>, Double>>()
-
+            Iteration++
             repeat(numAnts) {
                 val route = buildRoute()
                 val distance = calculateFullCycleDistance(route)
@@ -133,20 +116,25 @@ class AntColony(
                 if (distance < bestDistance) {
                     bestDistance = distance
                     bestRouteIndices = route
-                    bestIteration = iteration + 1
+                    ChangeOrNot = 1
                 }
             }
-
             updatePheromones(allRoutes)
+            if (ChangeOrNot == 1) {
+                WhichIteration = Iteration
+                ChangeOrNot = 0
+
+            }
         }
 
         val bestRoutePoints = bestRouteIndices.map { points[it] }
         return AntResult(
             route = bestRoutePoints,
             totalDistance = bestDistance,
-            foundAtIteration = bestIteration,
+            foundAtIteration = WhichIteration,
             startPoint = points[startId]
         )
+
     }
 
     private fun buildRoute(): List<Int> {

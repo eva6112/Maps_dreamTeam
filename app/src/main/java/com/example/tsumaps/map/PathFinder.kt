@@ -2,8 +2,10 @@ package com.example.tsumaps.map
 
 import kotlin.math.abs
 
-data class Node(val x: Int, val y: Int, var g: Int = Int.MAX_VALUE,
-    var h: Int = 0, var parent: Node? = null) {
+data class Node(
+    val x: Int, val y: Int, var g: Int = Int.MAX_VALUE,
+    var h: Int = 0, var parent: Node? = null
+) {
     val f: Int get() = g + h
 }
 
@@ -28,7 +30,8 @@ object PathFinder {
                 val nx = current.x + offset.first
                 val ny = current.y + offset.second
                 if (nx !in 0 until gridWidth || ny !in 0 until gridHeight ||
-                    matrix[ny][nx] == 1 || (nx to ny) in closedSet)
+                    matrix[ny][nx] == 1 || (nx to ny) in closedSet
+                )
                     continue
                 val tentativeG = current.g + 1
                 var neighborNode = openList.find { it.x == nx && it.y == ny }

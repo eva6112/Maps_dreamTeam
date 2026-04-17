@@ -44,20 +44,23 @@ fun MapScreen() {
     val scaledWidth = mapWidthDp * zoom
     val scaledHeight = mapHeightDp * zoom
 
-    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.primary)
-        .pointerInput(Unit) {
-            detectTransformGestures { centroid, pan, zoomMultiplier, _ ->
-                val oldZoom = zoom
-                val newZoom = (oldZoom * zoomMultiplier).coerceIn(0.1f, 5f)
-                val centroidOnMapX = (centroid.x - mapOffset.x) / oldZoom
-                val centroidOnMapY = (centroid.y - mapOffset.y) / oldZoom
-                val newMapOffsetX = centroid.x - centroidOnMapX * newZoom
-                val newMapOffsetY = centroid.y - centroidOnMapY * newZoom
-                mapOffset = Offset(newMapOffsetX, newMapOffsetY)
-                zoom = newZoom
-                mapOffset += pan
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.primary)
+            .pointerInput(Unit) {
+                detectTransformGestures { centroid, pan, zoomMultiplier, _ ->
+                    val oldZoom = zoom
+                    val newZoom = (oldZoom * zoomMultiplier).coerceIn(0.1f, 5f)
+                    val centroidOnMapX = (centroid.x - mapOffset.x) / oldZoom
+                    val centroidOnMapY = (centroid.y - mapOffset.y) / oldZoom
+                    val newMapOffsetX = centroid.x - centroidOnMapX * newZoom
+                    val newMapOffsetY = centroid.y - centroidOnMapY * newZoom
+                    mapOffset = Offset(newMapOffsetX, newMapOffsetY)
+                    zoom = newZoom
+                    mapOffset += pan
+                }
             }
-        }
     ) {
         Box(
             modifier = Modifier
@@ -78,7 +81,8 @@ fun MapScreen() {
                                     debugInfo = "Старт: [$gridX, $gridY]. Выберите финиш."
                                 } else {
                                     endPoint = gridX to gridY
-                                    val result = PathFinder.findPath(matrix, startPoint!!, endPoint!!)
+                                    val result =
+                                        PathFinder.findPath(matrix, startPoint!!, endPoint!!)
                                     if (result != null) {
                                         path = result
                                         debugInfo = "Маршрут построен!"
@@ -109,10 +113,24 @@ fun MapScreen() {
                     )
                 }
                 startPoint?.let { (x, y) ->
-                    drawCircle(Color.Green, radius = 15f, center = Offset(x * cellWidth + cellWidth/2, y * cellHeight + cellHeight/2))
+                    drawCircle(
+                        Color.Green,
+                        radius = 15f,
+                        center = Offset(
+                            x * cellWidth + cellWidth / 2,
+                            y * cellHeight + cellHeight / 2
+                        )
+                    )
                 }
                 endPoint?.let { (x, y) ->
-                    drawCircle(Color.Red, radius = 15f, center = Offset(x * cellWidth + cellWidth/2, y * cellHeight + cellHeight/2))
+                    drawCircle(
+                        Color.Red,
+                        radius = 15f,
+                        center = Offset(
+                            x * cellWidth + cellWidth / 2,
+                            y * cellHeight + cellHeight / 2
+                        )
+                    )
                 }
             }
         }
@@ -120,8 +138,11 @@ fun MapScreen() {
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding( top = if (isLandscape) 8.dp else 40.dp)
-                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f), shape = RoundedCornerShape(8.dp))
+                .padding(top = if (isLandscape) 8.dp else 40.dp)
+                .background(
+                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                    shape = RoundedCornerShape(8.dp)
+                )
                 .padding(12.dp)
         ) {
             Text(text = debugInfo, color = MaterialTheme.colorScheme.onPrimaryContainer)

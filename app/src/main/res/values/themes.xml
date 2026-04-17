@@ -1,5 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.TSUMaps" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.App.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">?android:attr/colorBackground</item>
+
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_tsu2_round</item>
+
+        <item name="postSplashScreenTheme">@style/Theme.TSUMaps</item>
+    </style>
+
+    <style name="Theme.TSUMaps" parent="android:Theme.Material.Light.NoActionBar">
+    </style>
+
 </resources>

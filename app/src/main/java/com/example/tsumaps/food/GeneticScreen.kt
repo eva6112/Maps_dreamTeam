@@ -40,7 +40,7 @@ import com.google.accompanist.permissions.isGranted
 import java.util.Locale
 import androidx.compose.ui.text.font.FontWeight
 
-@OptIn( ExperimentalPermissionsApi::class)
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun GeneticScreen() {
     val context = LocalContext.current
@@ -64,7 +64,8 @@ fun GeneticScreen() {
     fun updateLocationAndRun() {
         bestResult = null
         fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
-            userGridPoint = location?.let { gpsToPoint(it.latitude, it.longitude) } ?: Point(75.0, 75.0)
+            userGridPoint =
+                location?.let { gpsToPoint(it.latitude, it.longitude) } ?: Point(75.0, 75.0)
             isRunning = true
         }
     }
@@ -89,37 +90,62 @@ fun GeneticScreen() {
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.primary)) {
-        Box(modifier = Modifier.fillMaxSize().pointerInput(Unit) {
-            detectTransformGestures { centroid, pan, zoomMultiplier, _ ->
-                val oldZoom = zoom
-                val newZoom = (oldZoom * zoomMultiplier).coerceIn(0.1f, 5f)
-                val centroidOnMapX = (centroid.x - mapOffset.x) / oldZoom
-                val centroidOnMapY = (centroid.y - mapOffset.y) / oldZoom
-                mapOffset = Offset(centroid.x - centroidOnMapX * newZoom, centroid.y - centroidOnMapY * newZoom)
-                zoom = newZoom
-                mapOffset += pan
-            }
-        }) {
-            Box(modifier = Modifier
-                .offset { IntOffset(mapOffset.x.roundToInt(), mapOffset.y.roundToInt()) }
-                .requiredSize(3040.dp * zoom, 3000.dp * zoom)
+    Box(modifier = Modifier
+        .fillMaxSize()
+        .background(MaterialTheme.colorScheme.primary)) {
+        Box(modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                detectTransformGestures { centroid, pan, zoomMultiplier, _ ->
+                    val oldZoom = zoom
+                    val newZoom = (oldZoom * zoomMultiplier).coerceIn(0.1f, 5f)
+                    val centroidOnMapX = (centroid.x - mapOffset.x) / oldZoom
+                    val centroidOnMapY = (centroid.y - mapOffset.y) / oldZoom
+                    mapOffset = Offset(
+                        centroid.x - centroidOnMapX * newZoom,
+                        centroid.y - centroidOnMapY * newZoom
+                    )
+                    zoom = newZoom
+                    mapOffset += pan
+                }
+            }) {
+            Box(
+                modifier = Modifier
+                    .offset { IntOffset(mapOffset.x.roundToInt(), mapOffset.y.roundToInt()) }
+                    .requiredSize(3040.dp * zoom, 3000.dp * zoom)
             ) {
-                Image(painter = painterResource(id = R.drawable.map_color), contentDescription = "Карта", modifier = Modifier.fillMaxSize())
+                Image(
+                    painter = painterResource(id = R.drawable.map_color),
+                    contentDescription = "Карта",
+                    modifier = Modifier.fillMaxSize()
+                )
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     val cellW = size.width / 152
                     val cellH = size.height / 150
-                    userGridPoint?.let { drawCircle(Color.Red, 15f * zoom, Offset(it.x.toFloat() * cellW, it.y.toFloat() * cellH)) }
+                    val start = userGridPoint ?: Point(75.0, 75.0)
+                    val startX = start.x.toFloat() * cellW
+                    val startY = start.y.toFloat() * cellH
+                    userGridPoint?.let {
+                        drawCircle(
+                            Color.Red,
+                            15f * zoom,
+                            Offset(startX, startY)
+                        )
+                    }
                     bestResult?.let { result ->
                         val routePath = Path()
-                        val start = userGridPoint ?: Point(75.0, 75.0)
-                        routePath.moveTo(start.x.toFloat() * cellW, start.y.toFloat() * cellH)
+                        routePath.moveTo(startX, startY)
                         result.route.forEach { node ->
                             val shopPt = Offset(node.shop.x.toFloat() * cellW, node.shop.y.toFloat() * cellH)
                             routePath.lineTo(shopPt.x, shopPt.y)
                             drawCircle(Color.Green, 15f * zoom, shopPt)
                         }
-                        drawPath(routePath, Color.Black, style = Stroke(12f * zoom))
+                        routePath.lineTo(startX, startY)
+                        drawPath(
+                            path = routePath,
+                            color = Color.Black,
+                            style = Stroke(12f * zoom)
+                        )
                     }
                 }
             }
@@ -136,8 +162,10 @@ fun GeneticScreen() {
                 items(allPossibleItems) { item ->
                     FilterChip(
                         selected = selectedItems.contains(item),
-                        onClick = { selectedItems = if (selectedItems.contains(item)) selectedItems - item
-                        else selectedItems + item },
+                        onClick = {
+                            selectedItems = if (selectedItems.contains(item)) selectedItems - item
+                            else selectedItems + item
+                        },
                         label = { Text(item, fontSize = 10.sp) },
                         modifier = Modifier.padding(end = 4.dp)
                     )
@@ -158,7 +186,9 @@ fun GeneticScreen() {
                         else locationPermissionState.launchPermissionRequest()
                     },
                     enabled = selectedItems.isNotEmpty() && !isRunning,
-                    modifier = Modifier.fillMaxHeight().weight(1f),
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .weight(1f),
                     shape = RoundedCornerShape(8.dp),
                     contentPadding = PaddingValues(0.dp)
                 ) {
@@ -175,7 +205,9 @@ fun GeneticScreen() {
                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
                             contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                         ),
-                        modifier = Modifier.fillMaxHeight().weight(1f),
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .weight(1f),
                         shape = RoundedCornerShape(8.dp),
                         contentPadding = PaddingValues(0.dp)
                     ) {
@@ -194,7 +226,7 @@ fun GeneticScreen() {
                 confirmButton = {
                     TextButton(onClick = { showResultDialog = false }) { Text("ПОНЯТНО") }
                 },
-                title = { Text("Оптимальный путь" )},
+                title = { Text("Оптимальный путь") },
                 text = {
                     Column {
                         Text(
@@ -203,7 +235,11 @@ fun GeneticScreen() {
                             lineHeight = 16.sp
                         )
                         Text(
-                            text = String.format(Locale.US, "Общая дистанция: %.2f км", bestResult!!.totalDistance),
+                            text = String.format(
+                                Locale.US,
+                                "Общая дистанция: %.2f км",
+                                bestResult!!.totalDistance
+                            ),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
