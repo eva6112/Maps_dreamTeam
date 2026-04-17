@@ -59,6 +59,17 @@ import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.runtime.*
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 
 // Цветовая схема ТГУ
 val TsuBlue = Color(0xFF0072BC)
@@ -70,6 +81,8 @@ val TsuDark = Color(0xFF021521)
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun RouteScreen() {
+
+    var showMapOverlay by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val configuration = LocalConfiguration.current
@@ -189,7 +202,9 @@ fun RouteScreen() {
             result = result,
             onGetLocation = { getCurrentLocation() },
             onFindRoute = { findRoute() },
-            onClear = { selectedIds = emptySet() }
+            onClear = { selectedIds = emptySet() },
+            onShowMap = { showMapOverlay = true }
+
         )
     } else {
         PortraitRouteScreen(
@@ -204,7 +219,14 @@ fun RouteScreen() {
             onFindRoute = { findRoute() },
             onClear = { selectedIds = emptySet() },
             listHeightPercent = listHeightPercent,
-            onListHeightChange = { listHeightPercent = it }
+            onListHeightChange = { listHeightPercent = it },
+            onShowMap = { showMapOverlay = true }
+        )
+    }
+    if (showMapOverlay && result != null) {
+        AntMapOverlay(
+            result = result!!,
+            onClose = { showMapOverlay = false }
         )
     }
 }
@@ -223,7 +245,8 @@ fun PortraitRouteScreen(
     onFindRoute: () -> Unit,
     onClear: () -> Unit,
     listHeightPercent: Float,
-    onListHeightChange: (Float) -> Unit
+    onListHeightChange: (Float) -> Unit,
+    onShowMap: () -> Unit
 ) {
     val listState = rememberLazyListState()
     val resultScrollState = rememberScrollState()
@@ -355,7 +378,8 @@ fun PortraitRouteScreen(
                     ResultContent(
                         isCalculating = isCalculating,
                         result = result,
-                        scrollState = resultScrollState
+                        scrollState = resultScrollState,
+                        onShowMapClick = onShowMap
                     )
                 }
             }
@@ -419,7 +443,8 @@ fun LandscapeRouteScreen(
     result: AntResult?,
     onGetLocation: () -> Unit,
     onFindRoute: () -> Unit,
-    onClear: () -> Unit
+    onClear: () -> Unit,
+    onShowMap: () -> Unit
 ) {
     val listState = rememberLazyListState()
     val resultScrollState = rememberScrollState()
@@ -589,7 +614,8 @@ fun LandscapeRouteScreen(
                         isCalculating = isCalculating,
                         result = result,
                         scrollState = resultScrollState,
-                        compact = true
+                        compact = true,
+                        onShowMapClick = onShowMap
                     )
                 }
             }
@@ -721,7 +747,8 @@ fun ResultContent(
     isCalculating: Boolean,
     result: AntResult?,
     scrollState: ScrollState,
-    compact: Boolean = false
+    compact: Boolean = false,
+    onShowMapClick: () -> Unit
 ) {
     if (isCalculating) {
         Box(
@@ -798,6 +825,15 @@ fun ResultContent(
                         )
                     }
                 }
+
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Button(
+                onClick = onShowMapClick,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = TsuBlue)
+            ) {
+                Text("СМОТРЕТЬ НА КАРТЕ", color = Color.White)
             }
         }
     } else {
@@ -812,6 +848,108 @@ fun ResultContent(
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(16.dp)
             )
+        }
+    }
+}
+
+@Composable
+fun AntMapOverlay(
+    result: AntResult,
+    onClose: () -> Unit
+) {
+    var zoom by remember { mutableFloatStateOf(0.6f) }
+    var mapOffset by remember { mutableStateOf(Offset.Zero) }
+    var visiblePointsCount by remember { mutableIntStateOf(result.route.size) } // По умолчанию показываем всё
+    var isAnimating by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isAnimating) {
+        if (isAnimating) {
+            visiblePointsCount = 0
+            for (i in 1..result.route.size) {
+                visiblePointsCount = i
+                kotlinx.coroutines.delay(500)
+            }
+            isAnimating = false
+        }
+    }
+
+    Box(modifier = Modifier
+        .fillMaxSize()
+        .background(Color.Black.copy(alpha = 0.8f))) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    detectTransformGestures { centroid, pan, zoomMultiplier, _ ->
+                        val oldZoom = zoom
+                        val newZoom = (oldZoom * zoomMultiplier).coerceIn(0.1f, 5f)
+                        val centroidOnMapX = (centroid.x - mapOffset.x) / oldZoom
+                        val centroidOnMapY = (centroid.y - mapOffset.y) / oldZoom
+                        val newMapOffsetX = centroid.x - centroidOnMapX * newZoom
+                        val newMapOffsetY = centroid.y - centroidOnMapY * newZoom
+                        mapOffset = Offset(newMapOffsetX, newMapOffsetY)
+                        zoom = newZoom
+                        mapOffset += pan
+                    }
+                }
+        ) {
+            Box(
+                modifier = Modifier
+                    .offset { IntOffset(mapOffset.x.roundToInt(), mapOffset.y.roundToInt()) }
+                    .requiredSize(3040.dp * zoom, 3000.dp * zoom)
+            ) {
+                Image(
+                    painter = painterResource(id = com.example.tsumaps.R.drawable.map_color),
+                    contentDescription = "Карта",
+                    modifier = Modifier.fillMaxSize()
+                )
+
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val cellW = size.width / 152
+                    val cellH = size.height / 150
+                    val routePath = Path()
+                    val startX = result.startPoint.x.toFloat() * cellW
+                    val startY = result.startPoint.y.toFloat() * cellH
+                    routePath.moveTo(startX, startY)
+                    for (i in 0 until visiblePointsCount) {
+                        val node = result.route[i]
+                        val nodeX = node.x.toFloat() * cellW
+                        val nodeY = node.y.toFloat() * cellH
+                        routePath.lineTo(nodeX, nodeY)
+                        drawCircle(
+                            color = Color(0xFF0072BC),
+                            radius = 15f * zoom,
+                            center = Offset(nodeX, nodeY)
+                        )
+                    }
+                    drawPath(
+                        path = routePath,
+                        color = Color.Black,
+                        style = Stroke(width = 10f * zoom)
+                    )
+                }
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(32.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Button(
+                onClick = { isAnimating = true },
+                enabled = !isAnimating,
+                colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)
+            ) {
+                Text("АНИМАЦИЯ", color = Color.White)
+            }
+            Button(
+                onClick = onClose,
+                colors = ButtonDefaults.buttonColors(containerColor = Color.White)
+            ) {
+                Text("ЗАКРЫТЬ", color = Color.Black)
+            }
         }
     }
 }
