@@ -51,6 +51,7 @@ import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.annotation.SuppressLint
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
@@ -75,6 +76,7 @@ fun RouteScreen() {
     val attractions = Attractions.allAttractions
 
     // Получение GPS с демо-режимом
+    @SuppressLint("MissingPermission")
     fun getCurrentLocation() {
         if (!locationPermissionState.status.isGranted) {
             locationPermissionState.launchPermissionRequest()

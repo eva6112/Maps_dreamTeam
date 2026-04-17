@@ -9,8 +9,8 @@ object MapData {
     const val TOP_LEFT_LON = 84.941164
     const val BOTTOM_RIGHT_LAT = 56.464983
     const val BOTTOM_RIGHT_LON = 84.953859
-    const val ROWS = 152
-    const val COLS = 150
+    const val ROWS = 150
+    const val COLS = 152
 
     val LAT_STEP = (TOP_LEFT_LAT - BOTTOM_RIGHT_LAT) / (ROWS - 1)
     val LON_STEP = (BOTTOM_RIGHT_LON - TOP_LEFT_LON) / (COLS - 1)
