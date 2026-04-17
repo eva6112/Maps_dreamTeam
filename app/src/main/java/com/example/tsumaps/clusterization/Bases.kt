@@ -17,8 +17,7 @@ data class Centroid(
 )
 
 // 3. Функция для расчета расстояния от точки до центроида
-fun getDistance(place: Place, centroid: Centroid): Double
-{
+fun getDistance(place: Place, centroid: Centroid): Double {
     return sqrt((place.x - centroid.x).pow(2) + (place.y - centroid.y).pow(2))
 }
 

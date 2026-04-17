@@ -41,12 +41,24 @@ fun TreeScreen(modifier: Modifier = Modifier) {
     fun askNextQuestion(node: TreeNode?, chatList: MutableList<ChatMessage>) {
         if (node?.predictedLabel != null) {
             chatList.add(ChatMessage(isUser = false, text = "Рекомендую: ${node.predictedLabel}"))
-            chatList.add(ChatMessage(isUser = false, text = "Хотите подобрать что-то другое?", isResetButton = true))
+            chatList.add(
+                ChatMessage(
+                    isUser = false,
+                    text = "Хотите подобрать что-то другое?",
+                    isResetButton = true
+                )
+            )
             return
         }
         val featureName = node?.featureName ?: return
         val possibleValues = node.children.keys.toList()
-        chatList.add(ChatMessage(isUser = false, text = getQuestionText(featureName), options = possibleValues))
+        chatList.add(
+            ChatMessage(
+                isUser = false,
+                text = getQuestionText(featureName),
+                options = possibleValues
+            )
+        )
     }
 
     LaunchedEffect(Unit) {
@@ -57,24 +69,41 @@ fun TreeScreen(modifier: Modifier = Modifier) {
             val builtTree = buildTree(dataset, features)
             tree = builtTree
             currentNode = builtTree
-            messages.add(ChatMessage(isUser = false, text = "Привет! Я помогу выбрать место для обеда."))
+            messages.add(
+                ChatMessage(
+                    isUser = false,
+                    text = "Привет! Я помогу выбрать место для обеда."
+                )
+            )
             askNextQuestion(currentNode, messages)
         }
     }
 
-    Column(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    Column(modifier = modifier
+        .fillMaxSize()
+        .background(MaterialTheme.colorScheme.background)) {
         Surface(
             modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 4.dp) {
-            Box(modifier = Modifier.fillMaxWidth().height(64.dp), contentAlignment = Alignment.Center) {
+            tonalElevation = 4.dp
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp),
+                contentAlignment = Alignment.Center
+            ) {
                 Text(text = "Советник по обеду", fontWeight = FontWeight.Bold)
             }
         }
         LazyColumn(
-            modifier = Modifier.weight(1f).fillMaxWidth(),
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
             state = listState,
-            contentPadding = PaddingValues(horizontal = if (isLandscape) 32.dp else 16.dp,
-                vertical = 16.dp),
+            contentPadding = PaddingValues(
+                horizontal = if (isLandscape) 32.dp else 16.dp,
+                vertical = 16.dp
+            ),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(messages) { message ->
@@ -108,15 +137,24 @@ fun TreeScreen(modifier: Modifier = Modifier) {
                         }
                     }
                 }
-            }
-            else if (lastMessage.isResetButton) {
-                Box(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), contentAlignment = Alignment.Center) {
+            } else if (lastMessage.isResetButton) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
                     Button(
                         onClick = {
                             messages.clear()
                             userInput = emptyMap()
                             currentNode = tree
-                            messages.add(ChatMessage(isUser = false, text = "Начинаем новый поиск!"))
+                            messages.add(
+                                ChatMessage(
+                                    isUser = false,
+                                    text = "Начинаем новый поиск!"
+                                )
+                            )
                             askNextQuestion(currentNode, messages)
                             scope.launch { listState.scrollToItem(0) }
                         },
@@ -143,8 +181,10 @@ fun MessageBubble(message: ChatMessage, isLandscape: Boolean) {
                 bottomStart = if (isUser) CornerSize(16.dp) else CornerSize(0.dp)
             ),
             color = if (isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-            modifier = Modifier.widthIn(min = 200.dp,
-                max = if (isLandscape) 400.dp else 280.dp)
+            modifier = Modifier.widthIn(
+                min = 200.dp,
+                max = if (isLandscape) 400.dp else 280.dp
+            )
         ) {
             Text(
                 text = message.text,

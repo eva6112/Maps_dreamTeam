@@ -47,18 +47,21 @@ import android.content.res.Configuration
 @OptIn(ExperimentalMaterial3Api::class)                                 //получаем разрещение исползовать экспериметнальную фичу
 
 @Composable                                                             //кусочек строит часть интерфейса
-fun ClusterScreen()
-{
-    val context = LocalContext.current                                                              //для информации из assets
+fun ClusterScreen() {
+    val context =
+        LocalContext.current                                                              //для информации из assets
 
     var kText by remember { mutableStateOf("3") }                                                   //наблюдаемые переменные
     var places by remember { mutableStateOf<List<Place>>(emptyList()) }
     var clusters by remember { mutableStateOf<Map<Centroid, List<Place>>>(emptyMap()) }
 
-    val sheetState = rememberStandardBottomSheetState(initialValue = SheetValue.PartiallyExpanded)  //видно только верхушку шита
-    val scaffoldState = rememberBottomSheetScaffoldState(bottomSheetState = sheetState)             //состояние для каркаса всего экрана
+    val sheetState =
+        rememberStandardBottomSheetState(initialValue = SheetValue.PartiallyExpanded)  //видно только верхушку шита
+    val scaffoldState =
+        rememberBottomSheetScaffoldState(bottomSheetState = sheetState)             //состояние для каркаса всего экрана
 
-    val scope = rememberCoroutineScope()                                                            //для возможности ассинхронной работы
+    val scope =
+        rememberCoroutineScope()                                                            //для возможности ассинхронной работы
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     LaunchedEffect(Unit)                                                                            //ровно один раз, при запуске экрана
@@ -69,17 +72,24 @@ fun ClusterScreen()
     BottomSheetScaffold(
         scaffoldState = scaffoldState,
         sheetPeekHeight = 50.dp,                                                //высота выглядующего шита
-        sheetContent = { ClusterResultList(clusters = clusters)} ,                        //содержимое шита
+        sheetContent = { ClusterResultList(clusters = clusters) },                        //содержимое шита
         containerColor = MaterialTheme.colorScheme.primary,
         sheetContainerColor = MaterialTheme.colorScheme.primary
     )
-    {
-        innerPadding ->                                                         //отступы, которые генерирует система (не совпадало с системными кнопками)
-        Box(modifier = Modifier.fillMaxSize().padding(innerPadding))
+    { innerPadding ->                                                         //отступы, которые генерирует система (не совпадало с системными кнопками)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        )
         {
-            ClusterMapRenderer(places = places, clusters = clusters)            //отрисовка карты и точек
+            ClusterMapRenderer(
+                places = places,
+                clusters = clusters
+            )            //отрисовка карты и точек
 
-            Row(modifier = Modifier
+            Row(
+                modifier = Modifier
                     .align(Alignment.TopCenter)                                 //прижимаем наверх к центру
                     .padding(top = if (isLandscape) 8.dp else 28.dp)
                     .widthIn(max = if (isLandscape) 400.dp else 600.dp)
@@ -92,8 +102,12 @@ fun ClusterScreen()
             {
                 OutlinedTextField(
                     value = kText,
-                    onValueChange = { kText = it },                                             //действие при вводе
-                    label = if (!isLandscape) { { Text("Кластеры") } } else null,
+                    onValueChange = {
+                        kText = it
+                    },                                             //действие при вводе
+                    label = if (!isLandscape) {
+                        { Text("Кластеры") }
+                    } else null,
                     placeholder = { if (isLandscape) Text("Кластеры") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),      //показываем только цифры на клавиатуре
                     modifier = Modifier
@@ -117,12 +131,12 @@ fun ClusterScreen()
                 Button(
                     onClick = {
                         val k = kText.toIntOrNull()
-                        if (k != null && k > 0 && places.isNotEmpty())
-                        {
+                        if (k != null && k > 0 && places.isNotEmpty()) {
                             val kmeans = KMeans(places, k)
                             clusters = kmeans.run()
 
-                            scope.launch { sheetState.expand()                  //шит полностью открывается
+                            scope.launch {
+                                sheetState.expand()                  //шит полностью открывается
                             }
                         }
                     }
@@ -136,15 +150,13 @@ fun ClusterScreen()
 }
 
 @Composable
-fun ClusterResultList(clusters: Map<Centroid, List<Place>>)
-{
+fun ClusterResultList(clusters: Map<Centroid, List<Place>>) {
     LazyColumn(                                                             //умный вертикальный список (тотолько из того, что видно)
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
     )
     {
-
 
 
         item {
@@ -155,15 +167,13 @@ fun ClusterResultList(clusters: Map<Centroid, List<Place>>)
             )
         }
 
-        if (clusters.isEmpty())
-        {
+        if (clusters.isEmpty()) {
             item {
                 Text("Кластеры еще не рассчитаны.")
             }
-        }
-        else
-        {
-            val clusterEntries = clusters.entries.toList()                  //преобразование map в список (для LazyColumn)
+        } else {
+            val clusterEntries =
+                clusters.entries.toList()                  //преобразование map в список (для LazyColumn)
 
             itemsIndexed(clusterEntries)
             { index, entry ->                                               //проходим циклом по каждому кластеру
@@ -192,12 +202,12 @@ fun ClusterResultList(clusters: Map<Centroid, List<Place>>)
 
 
 @Composable
-fun ClusterMapRenderer(places: List<Place>, clusters: Map<Centroid, List<Place>>)
-{
+fun ClusterMapRenderer(places: List<Place>, clusters: Map<Centroid, List<Place>>) {
     var mapOffset by remember { mutableStateOf(Offset.Zero) }                         //запоминаем смещение карты, когда пользователь водит пальцем
     var zoom by remember { mutableFloatStateOf(0.6f) }
 
-    val gridWidth = 152                                                                        //размеры матрицы и карты
+    val gridWidth =
+        152                                                                        //размеры матрицы и карты
     val gridHeight = 150
     val mapWidthDp = 3040.dp
     val mapHeightDp = 3000.dp
@@ -246,7 +256,12 @@ fun ClusterMapRenderer(places: List<Place>, clusters: Map<Centroid, List<Place>>
     ) {
         Box(                                                                                    //бокс, перехватывающий касание экрана
             modifier = Modifier
-                .offset { IntOffset(mapOffset.x.roundToInt(), mapOffset.y.roundToInt()) }       //двигаем согласно mapOffset
+                .offset {
+                    IntOffset(
+                        mapOffset.x.roundToInt(),
+                        mapOffset.y.roundToInt()
+                    )
+                }       //двигаем согласно mapOffset
                 .requiredSize(scaledWidth, scaledHeight)
         ) {
             Image(
@@ -259,7 +274,8 @@ fun ClusterMapRenderer(places: List<Place>, clusters: Map<Centroid, List<Place>>
 
             Canvas(modifier = Modifier.fillMaxSize())                                           //накладываем прозрачный холст поверх карты
             {
-                val cellWidthPx = size.width / gridWidth                                        //размер ячейки в пикселях
+                val cellWidthPx =
+                    size.width / gridWidth                                        //размер ячейки в пикселях
                 val cellHeightPx = size.height / gridHeight
 
                 if (clusters.isEmpty())                                                         //алгоритм не запущен
@@ -276,23 +292,20 @@ fun ClusterMapRenderer(places: List<Place>, clusters: Map<Centroid, List<Place>>
                             center = center
                         )
 
-                        drawCircle(color = Color.Black,
+                        drawCircle(
+                            color = Color.Black,
                             radius = 25f,
                             center = center,
                             style = Stroke(width = 5f)
                         )
                     }
-                }
-                else
-                {
+                } else {
                     var colorIndex = 0
-                    for ((centroid, clusterPlaces) in clusters)
-                    {
+                    for ((centroid, clusterPlaces) in clusters) {
                         val clusterColor = clusterColors[colorIndex % clusterColors.size]
                         val clusterNumber = (colorIndex + 1).toString()
 
-                        for (place in clusterPlaces)
-                        {
+                        for (place in clusterPlaces) {
                             val center = Offset(
                                 x = (place.x * cellWidthPx).toFloat(),
                                 y = (place.y * cellHeightPx).toFloat()
