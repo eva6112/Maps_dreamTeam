@@ -17,6 +17,8 @@ import androidx.compose.foundation.lazy.LazyRow
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.shape.CornerSize
 import android.content.Context
+import android.content.res.Configuration
+import androidx.compose.ui.platform.LocalConfiguration
 
 data class ChatMessage(
     val isUser: Boolean,
@@ -28,6 +30,8 @@ data class ChatMessage(
 @Composable
 fun TreeScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val messages = remember { mutableStateListOf<ChatMessage>() }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
@@ -49,7 +53,7 @@ fun TreeScreen(modifier: Modifier = Modifier) {
         val csvText = getCsvFromAssets(context)
         val dataset = parseCsv(csvText)
         if (dataset.isNotEmpty()) {
-            val features = dataset.firstOrNull()?.features?.keys?.toList() ?: emptyList()
+            val features = dataset.first().features.keys.toList()
             val builtTree = buildTree(dataset, features)
             tree = builtTree
             currentNode = builtTree
@@ -60,7 +64,8 @@ fun TreeScreen(modifier: Modifier = Modifier) {
 
     Column(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Surface(
-            modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surface) {
+            modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 4.dp) {
             Box(modifier = Modifier.fillMaxWidth().height(64.dp), contentAlignment = Alignment.Center) {
                 Text(text = "Советник по обеду", fontWeight = FontWeight.Bold)
             }
@@ -68,11 +73,12 @@ fun TreeScreen(modifier: Modifier = Modifier) {
         LazyColumn(
             modifier = Modifier.weight(1f).fillMaxWidth(),
             state = listState,
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(horizontal = if (isLandscape) 32.dp else 16.dp,
+                vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(messages) { message ->
-                MessageBubble(message)
+                MessageBubble(message, isLandscape)
             }
         }
 
@@ -80,7 +86,10 @@ fun TreeScreen(modifier: Modifier = Modifier) {
         if (lastMessage != null && !lastMessage.isUser) {
             if (lastMessage.options.isNotEmpty()) {
                 LazyRow(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = if (isLandscape) 32.dp else 16.dp)
+                        .padding(bottom = 16.dp),
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -122,7 +131,7 @@ fun TreeScreen(modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun MessageBubble(message: ChatMessage) {
+fun MessageBubble(message: ChatMessage, isLandscape: Boolean) {
     val isUser = message.isUser
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -134,12 +143,13 @@ fun MessageBubble(message: ChatMessage) {
                 bottomStart = if (isUser) CornerSize(16.dp) else CornerSize(0.dp)
             ),
             color = if (isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-            modifier = Modifier.widthIn(max = 280.dp)
+            modifier = Modifier.widthIn(min = 200.dp,
+                max = if (isLandscape) 400.dp else 280.dp)
         ) {
             Text(
                 text = message.text,
                 modifier = Modifier.padding(12.dp),
-                color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onPrimary
             )
         }
     }
