@@ -1,12 +1,6 @@
 package com.example.tsumaps.ant_algorithm
 
 
-/**
- * Точка маршрута (достопримечательность)
- */
-
-
-
 object Attractions {
 
     val allAttractions = listOf(
@@ -119,24 +113,11 @@ object Attractions {
         )
     )
 
-    /**
-     * Получить точку по ID
-     */
     fun getPointById(id: Int): RoutePoint? {
         return allAttractions.find { it.id == id }
     }
 
-    /**
-     * Получить точки по списку ID
-     */
     fun getPointsByIds(ids: List<Int>): List<RoutePoint> {
         return allAttractions.filter { ids.contains(it.id) }
     }
-
-    /**
-     * Группы достопримечательностей для удобного выбора
-     */
-    val historicalGroup = listOf(0, 2, 4, 5, 9, 11, 13)  // исторические объекты
-    val natureGroup = listOf(1, 6, 8, 12, 14)             // природа и сад
-    val monumentsGroup = listOf(4, 7, 9, 10, 11, 13)          // памятники
 }
