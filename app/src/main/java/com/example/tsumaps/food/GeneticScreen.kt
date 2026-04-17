@@ -122,24 +122,30 @@ fun GeneticScreen() {
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     val cellW = size.width / 152
                     val cellH = size.height / 150
+                    val start = userGridPoint ?: Point(75.0, 75.0)
+                    val startX = start.x.toFloat() * cellW
+                    val startY = start.y.toFloat() * cellH
                     userGridPoint?.let {
                         drawCircle(
                             Color.Red,
                             15f * zoom,
-                            Offset(it.x.toFloat() * cellW, it.y.toFloat() * cellH)
+                            Offset(startX, startY)
                         )
                     }
                     bestResult?.let { result ->
                         val routePath = Path()
-                        val start = userGridPoint ?: Point(75.0, 75.0)
-                        routePath.moveTo(start.x.toFloat() * cellW, start.y.toFloat() * cellH)
+                        routePath.moveTo(startX, startY)
                         result.route.forEach { node ->
-                            val shopPt =
-                                Offset(node.shop.x.toFloat() * cellW, node.shop.y.toFloat() * cellH)
+                            val shopPt = Offset(node.shop.x.toFloat() * cellW, node.shop.y.toFloat() * cellH)
                             routePath.lineTo(shopPt.x, shopPt.y)
                             drawCircle(Color.Green, 15f * zoom, shopPt)
                         }
-                        drawPath(routePath, Color.Black, style = Stroke(12f * zoom))
+                        routePath.lineTo(startX, startY)
+                        drawPath(
+                            path = routePath,
+                            color = Color.Black,
+                            style = Stroke(12f * zoom)
+                        )
                     }
                 }
             }
