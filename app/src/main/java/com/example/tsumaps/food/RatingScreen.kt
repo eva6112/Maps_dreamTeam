@@ -42,38 +42,39 @@ import com.example.tsumaps.neural_network.ImageProcessor
 fun RatingScreen()
 {
     val context = LocalContext.current
-    var neuralNetwork by remember { mutableStateOf<AndroidNeuralNetwork?>(null) }
+    var neuralNetwork by remember { mutableStateOf<AndroidNeuralNetwork?>(null) }                 // инициализация нейросети
     val appBlueColor = Color(0xFF1976D2)
     val configuration = LocalConfiguration.current
-    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE          // проверка ориентации экрана (горизонталь/вертикаль)
 
     LaunchedEffect(Unit)
     {
         try
         {
-            neuralNetwork = AndroidNeuralNetwork(context)                               //загрузка нейросети из assets
+            neuralNetwork = AndroidNeuralNetwork(context)                                        // загрузка весов из assets/weights.json
         }
         catch (e: Exception)
         { }
     }
 
+    // список заведений для оценки
     val restaurants = listOf("Кафе «Минутка»", "Кафе «Сибирские блины»", "Кофейня «Starbooks»",
         "Магазин «Абрикос»", "Столовая «Столовая №1»", "Кафе «Rostic's»", "Кофейня «Точка»",
         "Кофейня «Белка»", "Ресторан «Гербарий»", "Кофейня «Baba Roma»", "Ресторан «Вечный зов»",
         "Столовая «Укромное местечко»", "Магазин «Ярче!»", "Ресторан «Ближе»", "Кофейня «Тесто»",
         "Ресторан «Poly bistro»", "Ресторан «Пешком постою»", "Кофейня «Xo bakery»", "Кафе «Кафе 2 корпуса»")
 
-    var expanded by remember { mutableStateOf(false) }
-    var selectedRestaurant by rememberSaveable { mutableStateOf(restaurants[0]) }
+    var expanded by remember { mutableStateOf(false) }                                           // состояние выпадающего списка
+    var selectedRestaurant by rememberSaveable { mutableStateOf(restaurants[0]) }                // выбранное заведение (сохраняется при повороте)
 
-    var paths by remember { mutableStateOf(listOf<Path>()) }         //готовые отрезки (линии)
-    var currentPath by remember { mutableStateOf<Path?>(null) }      //текущий рисующийся отрезок
-    var drawTrigger by remember { mutableIntStateOf(0) }             //триггер перерисовки Canvas
-    var canvasSize by remember { mutableStateOf(IntSize.Zero) }      //размеры холста в пикселях
+    var paths by remember { mutableStateOf(listOf<Path>()) }                                     // готовые нарисованные линии
+    var currentPath by remember { mutableStateOf<Path?>(null) }                                  // линия, которую сейчас рисуют
+    var drawTrigger by remember { mutableIntStateOf(0) }                                         // триггер для перерисовки Canvas
+    var canvasSize by remember { mutableStateOf(IntSize.Zero) }                                  // размер холста в пикселях
 
-    var recognizedDigit by rememberSaveable { mutableStateOf<Int?>(null) }
+    var recognizedDigit by rememberSaveable { mutableStateOf<Int?>(null) }                       // распознанная цифра (сохраняется при повороте)
 
-    //сохранение списка оценок при повороте экрана
+    // сохранение истории оценок при повороте экрана через mapSaver
     val savedRatings = rememberSaveable(
         saver = mapSaver(
             save = { list -> list.mapIndexed { index, pair -> index.toString() to listOf(pair.first, pair.second) }.toMap() },
@@ -86,9 +87,9 @@ fun RatingScreen()
                 list
             }
         )
-    ) { mutableStateListOf<Pair<String, Int>>() }                   //список заведений - оценка
+    ) { mutableStateListOf<Pair<String, Int>>() }                                                // список (заведение → оценка)
 
-    // Левая панель (Управление)
+    // Левая панель (выбор заведения + рисование цифры)
     val controlsContent = @Composable
     {
         if (!isLandscape)
@@ -96,6 +97,7 @@ fun RatingScreen()
             Text("Выберите заведение для оценки", fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 12.dp))
         }
 
+        // выпадающий список заведений (блокируется, если цифра уже распознана)
         ExposedDropdownMenuBox(
             expanded = expanded,
             onExpandedChange = { if (recognizedDigit == null) expanded = !expanded },
@@ -124,25 +126,25 @@ fun RatingScreen()
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Ряд с Холстом и Кнопками справа (для горизонтального режима)
+        // холст для рисования + кнопки управления
         val canvasAndButtons = @Composable
         {
             Box(
                 modifier = Modifier
-                    .size(if (isLandscape) 140.dp else 220.dp)
+                    .size(if (isLandscape) 140.dp else 220.dp)                                    // размер холста (меньше в горизонтальном режиме)
                     .background(Color.White, RoundedCornerShape(8.dp))
                     .border(2.dp, Color.LightGray, RoundedCornerShape(8.dp))
                     .clip(RoundedCornerShape(8.dp))
-                    .onSizeChanged { canvasSize = it }
+                    .onSizeChanged { canvasSize = it }                                           // запоминаем размер для конвертации в Bitmap
                     .pointerInput(recognizedDigit) {
-                        if (recognizedDigit == null)
+                        if (recognizedDigit == null)                                             // рисование разрешено только до распознавания
                         {
                             detectDragGestures(
                                 onDragStart = { offset -> currentPath = Path().apply { moveTo(offset.x, offset.y) } },
                                 onDrag = { change, _ ->
                                     change.consume()
                                     currentPath?.lineTo(change.position.x, change.position.y)
-                                    drawTrigger++
+                                    drawTrigger++                                                 // принудительная перерисовка
                                 },
                                 onDragEnd = { currentPath?.let { paths = paths + it }; currentPath = null }
                             )
@@ -150,11 +152,11 @@ fun RatingScreen()
                     }
             ) {
                 Canvas(modifier = Modifier.matchParentSize()) {
-                    drawTrigger
-                    val stroke = Stroke(width = if (isLandscape) 25f else 35f,
+                    drawTrigger                                                                  // следим за изменением для перерисовки
+                    val stroke = Stroke(width = if (isLandscape) 25f else 35f,                   // толщина линии (тоньше в горизонтальном режиме)
                         cap = StrokeCap.Round, join = StrokeJoin.Round)
-                    paths.forEach { drawPath(it, Color.Black, style = stroke) }
-                    currentPath?.let { drawPath(it, Color.Black, style = stroke) }
+                    paths.forEach { drawPath(it, Color.Black, style = stroke) }                  // рисуем готовые линии
+                    currentPath?.let { drawPath(it, Color.Black, style = stroke) }               // рисуем текущую линию
                 }
             }
 
@@ -163,13 +165,13 @@ fun RatingScreen()
             else
                 Spacer(modifier = Modifier.height(12.dp))
 
-            // Кнопки / Подтверждение
+            // кнопки: Стереть / Распознать / Подтверждение цифры
             Column(
                 modifier = if (isLandscape) Modifier.width(150.dp) else Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             )
             {
-                if (recognizedDigit == null)
+                if (recognizedDigit == null)                                                     // режим "ожидание распознавания"
                 {
                     Button(
                         onClick = { paths = emptyList(); currentPath = null },
@@ -182,9 +184,9 @@ fun RatingScreen()
                     Button(
                         onClick = {
                             if (neuralNetwork != null && paths.isNotEmpty()) {
-                                val bitmap = createBitmapFromPathsLocal(canvasSize, paths)
-                                val floatVector = ImageProcessor.processBitmapToVector(bitmap)
-                                recognizedDigit = neuralNetwork?.predict(floatVector)
+                                val bitmap = createBitmapFromPathsLocal(canvasSize, paths)      // холст → Bitmap
+                                val floatVector = ImageProcessor.processBitmapToVector(bitmap)  // 2500 чисел (0 или 1)
+                                recognizedDigit = neuralNetwork?.predict(floatVector)           // нейросеть → цифра
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -192,18 +194,18 @@ fun RatingScreen()
                     )
                     { Text("Распознать", fontSize = 12.sp) }
                 }
-                else
+                else                                                                             // режим "подтверждение цифры"
                 {
                     Text("Это $recognizedDigit?", fontWeight = FontWeight.Bold, color = appBlueColor)
                     Row {
-                        IconButton(onClick = { recognizedDigit = null; paths = emptyList() }) {
+                        IconButton(onClick = { recognizedDigit = null; paths = emptyList() }) {  // нет → рисуем заново
                             Text("Нет", color = Color(0xFF001383))
                         }
-                        IconButton(onClick = {
-                            savedRatings.removeAll { it.first == selectedRestaurant }
-                            savedRatings.add(0, selectedRestaurant to recognizedDigit!!)
-                            recognizedDigit = null
-                            paths = emptyList()
+                        IconButton(onClick = {                                                    // сохраняем оценку
+                            savedRatings.removeAll { it.first == selectedRestaurant }           // удаляем старую оценку
+                            savedRatings.add(0, selectedRestaurant to recognizedDigit!!)        // добавляем новую в начало
+                            recognizedDigit = null                                               // сбрасываем режим
+                            paths = emptyList()                                                  // очищаем холст
                         }) {
                             Text("Да", color = Color(0xFF001383))
                         }
@@ -221,7 +223,7 @@ fun RatingScreen()
         }
     }
 
-    // История оценок
+    // Правая панель (история оценок)
     val historyContent = @Composable
     {
         Text("История оценок", style = MaterialTheme.typography.titleMedium,
@@ -238,14 +240,14 @@ fun RatingScreen()
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically)
                         {
-                            Text(rating.first, modifier = Modifier.weight(1f), fontSize = 14.sp)
+                            Text(rating.first, modifier = Modifier.weight(1f), fontSize = 14.sp)     // название заведения
 
                             Box(modifier = Modifier.background(
                                 appBlueColor,
                                 RoundedCornerShape(8.dp))
                                 .padding(horizontal = 8.dp, vertical = 4.dp))
                             {
-                                Text("${rating.second} из 9", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                Text("${rating.second} из 9", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)  // оценка (0-9)
                             }
                         }
                     }
@@ -254,8 +256,8 @@ fun RatingScreen()
         }
     }
 
-    // Финальный Layout
-    if (isLandscape)
+    // финальная верстка с учетом ориентации экрана
+    if (isLandscape)                                                                             // горизонтальный режим: Row (2 колонки)
     {
         Row(modifier = Modifier.fillMaxSize().padding(12.dp)) {
             Column(modifier = Modifier
@@ -266,7 +268,7 @@ fun RatingScreen()
             Column(modifier = Modifier.weight(1f)) { historyContent() }
         }
     }
-    else
+    else                                                                                         // вертикальный режим: Column
     {
         Column(modifier = Modifier.fillMaxSize().padding(16.dp))
         {
@@ -277,15 +279,16 @@ fun RatingScreen()
     }
 }
 
+// конвертация нарисованных линий в Bitmap для передачи в нейросеть
 private fun createBitmapFromPathsLocal(canvasSize: IntSize, paths: List<Path>): Bitmap
 {
     val bitmap = Bitmap.createBitmap(canvasSize.width.coerceAtLeast(1), canvasSize.height.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
     val canvas = android.graphics.Canvas(bitmap)
-    canvas.drawColor(android.graphics.Color.WHITE)
+    canvas.drawColor(android.graphics.Color.WHITE)                                               // белый фон (важно для нейросети)
     val paint = android.graphics.Paint().apply {
-        color = android.graphics.Color.BLACK
+        color = android.graphics.Color.BLACK                                                     // черные линии
         style = android.graphics.Paint.Style.STROKE
-        strokeWidth = if (canvasSize.width < 500) 25f else 35f
+        strokeWidth = if (canvasSize.width < 500) 25f else 35f                                   // адаптивная толщина линии
         strokeCap = android.graphics.Paint.Cap.ROUND
         strokeJoin = android.graphics.Paint.Join.ROUND
         isAntiAlias = true
