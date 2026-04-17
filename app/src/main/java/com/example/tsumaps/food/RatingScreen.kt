@@ -109,7 +109,10 @@ fun RatingScreen()
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                 colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(focusedBorderColor = appBlueColor,
                     unfocusedBorderColor = appBlueColor),
-                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                modifier = Modifier.menuAnchor(
+                    type = ExposedDropdownMenuAnchorType.PrimaryNotEditable,
+                    enabled = true
+                ).fillMaxWidth(),
                 enabled = recognizedDigit == null
             )
             ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false })
