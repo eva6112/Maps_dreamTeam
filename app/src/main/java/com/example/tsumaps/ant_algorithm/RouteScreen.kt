@@ -108,12 +108,17 @@ fun RouteScreen() {
                     currentGps = GpsLocation(it.latitude, it.longitude)
                     Toast.makeText(context, "Местоположение определено", Toast.LENGTH_SHORT).show()
                 } ?: run {
-                    Toast.makeText(context, "GPS не определён, используем демо-точку", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        context,
+                        "GPS не определён, используем демо-точку",
+                        Toast.LENGTH_SHORT
+                    ).show()
                     currentGps = GpsLocation(56.466000, 84.949000)
                 }
                 isLocating = false
             }.addOnFailureListener {
-                Toast.makeText(context, "Ошибка GPS, используем демо-точку", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Ошибка GPS, используем демо-точку", Toast.LENGTH_SHORT)
+                    .show()
                 currentGps = GpsLocation(56.466000, 84.949000)
                 isLocating = false
             }
@@ -124,12 +129,17 @@ fun RouteScreen() {
 
     fun findRoute() {
         if (selectedIds.isEmpty()) {
-            Toast.makeText(context, "Выберите хотя бы одну достопримечательность", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                context,
+                "Выберите хотя бы одну достопримечательность",
+                Toast.LENGTH_SHORT
+            ).show()
             return
         }
 
         if (currentGps == null) {
-            Toast.makeText(context, "GPS не определён, используем демо-точку", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "GPS не определён, используем демо-точку", Toast.LENGTH_SHORT)
+                .show()
             currentGps = GpsLocation(56.466000, 84.949000)
         }
 
@@ -152,7 +162,11 @@ fun RouteScreen() {
                     withContext(Dispatchers.Main) {
                         result = routeResult
                         isCalculating = false
-                        Toast.makeText(context, "Маршрут найден на итерации ${routeResult.foundAtIteration}", Toast.LENGTH_LONG).show()
+                        Toast.makeText(
+                            context,
+                            "Маршрут найден на итерации ${routeResult.foundAtIteration}",
+                            Toast.LENGTH_LONG
+                        ).show()
                     }
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
@@ -474,7 +488,7 @@ fun LandscapeRouteScreen(
                 modifier = Modifier
                     .weight(0.2f)
                     .fillMaxSize()
-                    .padding(start=8.dp),
+                    .padding(start = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -682,8 +696,18 @@ fun GpsStatusCard(currentGps: GpsLocation?, compact: Boolean = false) {
     ) {
         Text(
             text = if (currentGps != null) {
-                if (compact) "📍 ${String.format("%.2f", currentGps.latitude)}, ${String.format("%.2f", currentGps.longitude)}"
-                else "📍 Широта: ${String.format("%.4f", currentGps.latitude)}, Долгота: ${String.format("%.4f", currentGps.longitude)}"
+                if (compact) "📍 ${
+                    String.format(
+                        "%.2f",
+                        currentGps.latitude
+                    )
+                }, ${String.format("%.2f", currentGps.longitude)}"
+                else "📍 Широта: ${
+                    String.format(
+                        "%.4f",
+                        currentGps.latitude
+                    )
+                }, Долгота: ${String.format("%.4f", currentGps.longitude)}"
             } else "⏳ Нажмите GPS",
             modifier = Modifier.padding(if (compact) 6.dp else 10.dp),
             fontSize = if (compact) 9.sp else 11.sp,

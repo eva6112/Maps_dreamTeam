@@ -46,8 +46,8 @@ class AntColony(
         private const val MAX_LAT = 56.471848   // север
         private const val MIN_LON = 84.941164   // запад
         private const val MAX_LON = 84.953859   // восток
-        private const val MAP_SIZE_X= 152
-        private const val MAP_SIZE_Y= 150 // 152x150 пикселей
+        private const val MAP_SIZE_X = 152
+        private const val MAP_SIZE_Y = 150 // 152x150 пикселей
     }
 
     init {
@@ -70,13 +70,14 @@ class AntColony(
 
     private fun gpsToMapCoords(gps: GpsLocation): Pair<Int, Int> {
         val x = ((gps.longitude - MIN_LON) / (MAX_LON - MIN_LON) * MAP_SIZE_X).toInt()
-            .coerceIn(0, MAP_SIZE_X-1)
+            .coerceIn(0, MAP_SIZE_X - 1)
 
         val y = MAP_SIZE_Y - ((gps.latitude - MIN_LAT) / (MAX_LAT - MIN_LAT) * MAP_SIZE_Y).toInt()
-            .coerceIn(0, MAP_SIZE_Y-1)
+            .coerceIn(0, MAP_SIZE_Y - 1)
 
         return Pair(x, y)
     }
+
     private fun findNearestPointToGps(): Int {
         val (userX, userY) = gpsToMapCoords(userGps)
 
@@ -126,15 +127,16 @@ class AntColony(
             }
         }
 
-            val bestRoutePoints = bestRouteIndices.map { points[it] }
-            return AntResult(
-                route = bestRoutePoints,
-                totalDistance = bestDistance,
-                foundAtIteration = WhichIteration,
-                startPoint = points[startId]
-            )
+        val bestRoutePoints = bestRouteIndices.map { points[it] }
+        return AntResult(
+            route = bestRoutePoints,
+            totalDistance = bestDistance,
+            foundAtIteration = WhichIteration,
+            startPoint = points[startId]
+        )
 
     }
+
     private fun buildRoute(): List<Int> {
         val visited = BooleanArray(n)
         val route = mutableListOf<Int>()
